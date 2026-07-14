@@ -1,0 +1,11 @@
+# 로컬 모델 런타임 — 무거운 산출물은 커밋하지 않는다(코드/설정만 버전관리).
+.venv/
+models/
+outputs/
+test_face.jpg
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.gguf
+__pycache__/
