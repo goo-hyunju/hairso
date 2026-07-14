@@ -21,4 +21,5 @@
 - 실제 스키마 적용/마이그레이션(Alembic)은 **사용자 관리**(§4.19). `db/schema.sql` 은 설계 참고본. Alembic 도입은 스키마 확정 후.
 
 ## 확인 필요 (사용자)
-- 실 외부 API 키(Gemini/PixVerse/fal/Wan), Supabase·R2 자격, BE 실행 포트·CORS 대상 오리진.
+- 실 외부 API 키(Gemini/PixVerse/fal/Wan), Supabase·R2 자격.
+- ~~BE 실행 포트·CORS 대상 오리진~~ → **해소:** 포트 **8000** 고정, dev 는 Next 프록시로 CORS 미사용. 루트 [`../../docs/LOCAL_DEV.md`](../../docs/LOCAL_DEV.md) 참조. (production 게이트웨이/CORS 는 로드맵)

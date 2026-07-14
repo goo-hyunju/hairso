@@ -17,4 +17,5 @@
 - **6주차:** 관리자 화면, 오류/재시도 UI, 배포. PWA(옵션 — 서비스워커 얼굴/결과 URL 캐싱 금지).
 
 ## 확인 필요 (사용자)
-- `NEXT_PUBLIC_API_BASE_URL`(BE 포트/CORS). 테스트 러너 확정(node --test 채택). UI 시안(현재 없음 → 정보구조 경계만 확정).
+- ~~`NEXT_PUBLIC_API_BASE_URL`(BE 포트/CORS)~~ → **해소:** dev 는 빈 값(Next 프록시 `/api/*` → BE :8000, CORS 미사용). 루트 [`../../docs/LOCAL_DEV.md`](../../docs/LOCAL_DEV.md) 참조.
+- 테스트 러너 확정(node --test 채택). UI 시안(현재 없음 → 정보구조 경계만 확정).

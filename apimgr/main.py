@@ -77,3 +77,28 @@ app.include_router(webhooks.router)
 @app.get("/")
 async def root() -> dict[str, str]:
     return {"service": "apimgr", "docs": "/docs"}
+
+
+def run() -> None:
+    """개발 서버 기동 진입점 — `python main.py` 로 실행한다.
+
+    포트는 FE `next.config.mjs` 프록시 대상(127.0.0.1:8000)과 반드시 일치해야 하므로 8000 을
+    기본값으로 고정한다(§ 루트 docs/LOCAL_DEV.md). 필요 시 env 로만 override.
+    - APP_HOST(기본 127.0.0.1) / APP_PORT(기본 8000) / APP_RELOAD(기본 1=켜짐)
+    reload 는 앱 객체가 아니라 import 문자열("main:app")을 넘겨야 동작한다.
+    uvicorn 은 실행 시점에만 필요하므로 여기서 import 한다(테스트의 `import main` 부담 회피).
+    """
+    import os
+
+    import uvicorn
+
+    uvicorn.run(
+        "main:app",
+        host=os.environ.get("APP_HOST", "127.0.0.1"),
+        port=int(os.environ.get("APP_PORT", "8000")),
+        reload=os.environ.get("APP_RELOAD", "1") == "1",
+    )
+
+
+if __name__ == "__main__":
+    run()
