@@ -33,6 +33,7 @@ class Generation:
     provider: ProviderName
     status: GenerationStatus
     idempotency_key: str
+    created_by: str | None = None  # auth.users(id) — 인증된 요청자(선택적 인증, 익명이면 None)
     model: str | None = None
     batch_id: str | None = None  # 이미지 3종 묶음(영상은 None)
     external_job_id: str | None = None

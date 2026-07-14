@@ -22,6 +22,10 @@ class Settings:
     database_url: str = field(default_factory=lambda: _get("DATABASE_URL"))
     jwt_secret: str = field(default_factory=lambda: _get("JWT_SECRET"))
 
+    # Supabase Auth (JWKS ES256 토큰 검증). SUPABASE_URL 미설정 시 인증 비활성(익명만).
+    supabase_url: str = field(default_factory=lambda: _get("SUPABASE_URL"))
+    jwt_audience: str = field(default_factory=lambda: _get("JWT_AUDIENCE", "authenticated"))
+
     # 스토리지 (R2)
     storage_access_key: str = field(default_factory=lambda: _get("STORAGE_ACCESS_KEY"))
     storage_secret_key: str = field(default_factory=lambda: _get("STORAGE_SECRET_KEY"))

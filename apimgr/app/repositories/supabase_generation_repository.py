@@ -24,7 +24,7 @@ from app.domain.models import Generation
 from app.repositories.generation_repository import GenerationRepository
 
 _SELECT_COLUMNS = (
-    "id, consultation_id, generation_type, provider, status, idempotency_key, "
+    "id, consultation_id, created_by, generation_type, provider, status, idempotency_key, "
     "model, batch_id, external_job_id, ai_trace_id, input_asset_id, output_asset_id, "
     "prompt, negative_prompt, estimated_cost_usd, actual_cost_usd, error_code, "
     "error_message, share_token, created_at, submitted_at, completed_at"
@@ -40,6 +40,7 @@ def _row_to_generation(row: dict) -> Generation:
     return Generation(
         id=str(row["id"]),
         consultation_id=str(row["consultation_id"]) if row["consultation_id"] is not None else "",
+        created_by=str(row["created_by"]) if row["created_by"] is not None else None,
         generation_type=GenerationType(row["generation_type"]),
         provider=ProviderName(row["provider"]),
         status=GenerationStatus(row["status"]),
@@ -68,6 +69,7 @@ def _to_params(g: Generation) -> dict:
     return {
         "id": _uid(g.id),
         "consultation_id": _uid(g.consultation_id) if g.consultation_id else None,
+        "created_by": _uid(g.created_by),
         "generation_type": g.generation_type.value,
         "provider": g.provider.value,
         "status": g.status.value,
@@ -100,16 +102,18 @@ class SupabaseGenerationRepository(GenerationRepository):
             conn.execute(
                 """
                 INSERT INTO public.generations
-                    (id, consultation_id, generation_type, provider, status, idempotency_key,
-                     model, batch_id, external_job_id, ai_trace_id, input_asset_id, output_asset_id,
-                     prompt, negative_prompt, estimated_cost_usd, actual_cost_usd, error_code,
+                    (id, consultation_id, created_by, generation_type, provider, status,
+                     idempotency_key, model, batch_id, external_job_id, ai_trace_id,
+                     input_asset_id, output_asset_id, prompt, negative_prompt,
+                     estimated_cost_usd, actual_cost_usd, error_code,
                      error_message, share_token, created_at, submitted_at, completed_at)
                 VALUES
-                    (%(id)s, %(consultation_id)s, %(generation_type)s, %(provider)s, %(status)s,
-                     %(idempotency_key)s, %(model)s, %(batch_id)s, %(external_job_id)s, %(ai_trace_id)s,
-                     %(input_asset_id)s, %(output_asset_id)s, %(prompt)s, %(negative_prompt)s,
-                     %(estimated_cost_usd)s, %(actual_cost_usd)s, %(error_code)s, %(error_message)s,
-                     %(share_token)s, %(created_at)s, %(submitted_at)s, %(completed_at)s)
+                    (%(id)s, %(consultation_id)s, %(created_by)s, %(generation_type)s, %(provider)s,
+                     %(status)s, %(idempotency_key)s, %(model)s, %(batch_id)s, %(external_job_id)s,
+                     %(ai_trace_id)s, %(input_asset_id)s, %(output_asset_id)s, %(prompt)s,
+                     %(negative_prompt)s, %(estimated_cost_usd)s, %(actual_cost_usd)s, %(error_code)s,
+                     %(error_message)s, %(share_token)s, %(created_at)s, %(submitted_at)s,
+                     %(completed_at)s)
                 """,
                 _to_params(generation),
             )

@@ -48,6 +48,7 @@ class GenerationService:
         consultation_id: str,
         input_data: VideoGenerationInput,
         provider: VideoProvider,
+        created_by: str | None = None,
     ) -> Generation:
         # 1. Idempotency — 동일 key 재요청은 기존 작업을 반환하고 재제출하지 않는다.
         #    스캐폴드는 조회 후 저장(check-then-save). 실서비스의 동시성 방어는
@@ -65,6 +66,7 @@ class GenerationService:
             provider=ProviderName.MOCK,  # submit 결과로 실제 provider 반영
             status=GenerationStatus.CREATED,
             idempotency_key=input_data.idempotency_key,
+            created_by=created_by,  # 인증된 요청자(선택적 인증, 익명이면 None)
             input_asset_id=input_data.image_asset_id,
             prompt=input_data.prompt,
             negative_prompt=input_data.negative_prompt,

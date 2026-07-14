@@ -11,7 +11,11 @@ import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
-from app.api.deps import get_default_video_provider, get_generation_service
+from app.api.deps import (
+    get_default_video_provider,
+    get_generation_service,
+    get_optional_user,
+)
 from app.domain.enums import GenerationStatus, GenerationType
 from app.providers.video_generation.base import VideoGenerationInput
 from app.providers.video_generation.mock import MockScenario, MockVideoProvider
@@ -52,8 +56,12 @@ async def create_video_generation(
     request: VideoGenerationRequest,
     background: BackgroundTasks,
     service: GenerationService = Depends(get_generation_service),
+    user_id: str | None = Depends(get_optional_user),
 ) -> VideoGenerationResponse:
-    """영상 생성 작업을 등록하고 202 + generation_id 를 반환한다(완료를 기다리지 않음)."""
+    """영상 생성 작업을 등록하고 202 + generation_id 를 반환한다(완료를 기다리지 않음).
+
+    선택적 인증: 유효 토큰이 있으면 user_id 를 created_by 로 연결, 없으면 익명(None).
+    """
     provider = get_default_video_provider()
     input_data = VideoGenerationInput(
         image_asset_id=request.image_asset_id,
@@ -70,6 +78,7 @@ async def create_video_generation(
         consultation_id=request.consultation_id,
         input_data=input_data,
         provider=provider,
+        created_by=user_id,
     )
     # [스캐폴드 데모] 새로 만든 작업만 Mock 전진(중복 idempotent 반환은 이미 진행 중).
     if gen.status is GenerationStatus.SUBMITTED and gen.generation_type is GenerationType.VIDEO:

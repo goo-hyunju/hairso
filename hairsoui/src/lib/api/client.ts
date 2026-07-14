@@ -13,6 +13,18 @@ import { API_ERROR_CODES, ApiError, type ApiErrorCode } from "./errors";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
+/**
+ * 액세스 토큰 공급자(선택적 인증) — supabase-js 등 인증 클라이언트가 등록한다.
+ * 미등록이면 토큰 없이(익명) 요청한다. BE 는 토큰이 있으면 검증해 created_by 를 채운다.
+ * 예: `setAuthTokenProvider(async () => (await supabase.auth.getSession()).data.session?.access_token ?? null)`
+ */
+type AuthTokenProvider = () => string | null | Promise<string | null>;
+let authTokenProvider: AuthTokenProvider | null = null;
+
+export function setAuthTokenProvider(provider: AuthTokenProvider | null): void {
+  authTokenProvider = provider;
+}
+
 function isApiErrorCode(value: unknown): value is ApiErrorCode {
   return typeof value === "string" && (API_ERROR_CODES as readonly string[]).includes(value);
 }
@@ -27,11 +39,21 @@ export interface RequestOptions<T> {
 export async function apiRequest<T>(path: string, options: RequestOptions<T>): Promise<T> {
   const { method = "GET", body, schema, signal } = options;
 
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (authTokenProvider) {
+    try {
+      const token = await authTokenProvider();
+      if (token) headers.Authorization = `Bearer ${token}`;
+    } catch {
+      // 토큰 획득 실패는 익명으로 진행(선택적 인증) — 요청 자체를 막지 않는다.
+    }
+  }
+
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
     });

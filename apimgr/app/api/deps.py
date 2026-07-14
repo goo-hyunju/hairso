@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from fastapi import HTTPException, Request
+
+from app.api.auth import SupabaseJWTVerifier
 from app.core.config import get_settings
 from app.providers.video_generation.mock import MockScenario, MockVideoProvider
 from app.repositories.generation_repository import (
@@ -45,3 +48,36 @@ def get_webhook_service() -> WebhookService:
 def get_default_video_provider() -> MockVideoProvider:
     # 기본은 Mock. 실 Provider(PixVerse/fal)는 config.default_video_provider 로 로드맵 전환.
     return MockVideoProvider(MockScenario.SUCCESS)
+
+
+@lru_cache(maxsize=1)
+def get_jwt_verifier() -> SupabaseJWTVerifier | None:
+    # SUPABASE_URL 미설정 시 인증 비활성(None) — 토큰 검증 불가.
+    settings = get_settings()
+    if not settings.supabase_url:
+        return None
+    return SupabaseJWTVerifier(settings.supabase_url, settings.jwt_audience)
+
+
+def get_optional_user(request: Request) -> str | None:
+    """선택적 인증(§ 결정: 점진적). Bearer 토큰이 있으면 검증해 user_id(sub)를 반환하고,
+    없으면 None(익명 허용).
+
+    토큰이 있으나 무효/검증불가면 401 — 위조 토큰을 익명으로 통과시키지 않는다(§11 보안).
+    """
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        return None
+    token = header[len("Bearer ") :].strip()
+    if not token:
+        return None
+    verifier = get_jwt_verifier()
+    if verifier is None:
+        # 서버에 Supabase URL 미설정 → 토큰을 신뢰할 수 없다.
+        raise HTTPException(status_code=401, detail="UNAUTHORIZED")
+    try:
+        payload = verifier.verify(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="UNAUTHORIZED")
+    sub = payload.get("sub")
+    return str(sub) if sub is not None else None
