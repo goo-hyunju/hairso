@@ -1,0 +1,24 @@
+{
+  "_note": "계약 enum 단일 출처(정본). BE domain/enums.py 와 FE hairsoui/contract/enums.json 이 이 값과 일치해야 한다(F8 parity 테스트가 강제). 값 변경 시 세 곳 동기화.",
+  "GenerationStatus": [
+    "CREATED", "UPLOADING", "SUBMITTED", "QUEUED", "PROCESSING",
+    "POST_PROCESSING", "SUCCEEDED", "FAILED", "CANCELED", "EXPIRED"
+  ],
+  "GenerationType": ["IMAGE", "VIDEO"],
+  "ProviderName": [
+    "MOCK", "GEMINI", "PIXVERSE", "FAL_WAN", "WAN_CLOUD_API", "SELF_HOSTED_WAN"
+  ],
+  "VideoProviderName": [
+    "PIXVERSE", "FAL_WAN", "WAN_CLOUD_API", "SELF_HOSTED_WAN", "MOCK"
+  ],
+  "ImageProviderName": ["GEMINI", "MOCK"],
+  "ProviderJobStatus": ["PENDING", "PROCESSING", "SUCCEEDED", "FAILED"],
+  "ErrorCode": [
+    "ASSET_INVALID", "ASSET_NOT_FOUND", "CONSENT_REQUIRED", "GENERATION_DUPLICATED",
+    "PROVIDER_RATE_LIMITED", "PROVIDER_BALANCE_EXHAUSTED", "GENERATION_POLICY_REJECTED",
+    "GENERATION_FAILED", "WEBHOOK_SIGNATURE_INVALID", "UNAUTHORIZED", "FORBIDDEN",
+    "VALIDATION_ERROR", "NOT_FOUND", "CREDIT_INSUFFICIENT", "SHARE_EXPIRED",
+    "DOWNLOAD_FAILED", "INTERNAL_ERROR", "UNKNOWN"
+  ],
+  "CreditTxType": ["RESERVE", "CHARGE", "REFUND", "ADJUST"]
+}

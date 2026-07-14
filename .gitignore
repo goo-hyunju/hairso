@@ -1,0 +1,44 @@
+# === Python (BE: apimgr) ===
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# === Node (FE: hairsoui) ===
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+out/
+**/out/
+.turbo/
+*.tsbuildinfo
+
+# === 환경변수 · 자격증명 (커밋 금지) ===
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+!**/.env.example
+# 평문 자격증명 폴더(루트 CLAUDE.md §4.18)
+cfg/
+**/cfg/
+
+# === MCP 설정(project_ref 포함) ===
+.mcp.json
+
+# === OS · 에디터 ===
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/

@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HairView AI · 사용자 & 개발자 핸드북</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#26191d; --bg:#f4eff0; --paper:#fffdfc; --line:#e7dee1; --muted:#8a7a80;
+    --rose:#a5325b; --rose-soft:#f6e4ea; --teal:#1f6b64; --teal-soft:#dcefec;
+    --ok:#2f7d5a; --ok-soft:#e0efe6; --warn:#9a6a12; --warn-soft:#f6ecd6; --road:#6a5c93; --road-soft:#eae6f2;
+    --chocolate:#3b2417; --shadow:0 1px 2px rgba(38,25,29,.05),0 8px 30px rgba(38,25,29,.06);
+    --serif:"Fraunces",Georgia,"Times New Roman",serif;
+    --sans:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:"JetBrains Mono","SF Mono","Cascadia Code",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  a{color:var(--rose);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,kbd{font-family:var(--mono);font-size:.88em}
+  .skip{position:absolute;left:-999px;top:0;background:var(--ink);color:#fff;padding:.6rem 1rem;z-index:99}
+  .skip:focus{left:.5rem;top:.5rem}
+  :focus-visible{outline:2.5px solid var(--rose);outline-offset:3px;border-radius:3px}
+
+  /* ---- shell ---- */
+  .shell{display:grid;grid-template-columns:262px minmax(0,1fr);gap:0;max-width:1240px;margin:0 auto}
+  .side{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:2rem 1.2rem 3rem;
+    border-right:1px solid var(--line)}
+  .brand{font-family:var(--serif);font-weight:600;font-size:1.32rem;line-height:1.05;letter-spacing:-.02em;
+    display:flex;align-items:center;gap:.55rem;margin-bottom:.15rem}
+  .brand .dot{width:.62rem;height:.62rem;border-radius:50%;
+    background:linear-gradient(135deg,var(--rose),var(--chocolate));flex:0 0 auto}
+  .brand small{display:block;font-family:var(--sans);font-weight:500;font-size:.7rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted);margin-top:.35rem}
+  nav.toc{margin-top:1.8rem;font-size:.9rem}
+  nav.toc .grp{font-size:.7rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+    margin:1.5rem 0 .5rem;font-weight:600}
+  nav.toc .grp.u{color:var(--rose)} nav.toc .grp.d{color:var(--teal)}
+  nav.toc a{display:block;color:var(--ink);padding:.28rem .5rem;border-radius:7px;border-left:2px solid transparent}
+  nav.toc a:hover{background:var(--paper);text-decoration:none;border-left-color:var(--line)}
+
+  main{padding:2.2rem clamp(1.1rem,4vw,3.4rem) 5rem;min-width:0}
+
+  /* ---- hero ---- */
+  .hero{padding:2.2rem 0 2.6rem;border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--rose);font-weight:600}
+  h1{font-family:var(--serif);font-weight:400;font-size:clamp(2.3rem,5.6vw,3.9rem);line-height:1.02;
+    letter-spacing:-.02em;margin:.6rem 0 .1rem}
+  h1 em{font-style:italic;color:var(--rose)}
+  .lede{font-size:1.12rem;color:#4a3a40;max-width:52ch;margin:.9rem 0 0}
+  .b-a{display:grid;grid-template-columns:1fr auto 1fr;gap:0;align-items:stretch;margin:1.8rem 0 0;
+    max-width:520px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--paper);
+    box-shadow:var(--shadow)}
+  .b-a .cell{padding:1.1rem 1.15rem}
+  .b-a .cap{font-size:.68rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .face{margin-top:.7rem;height:74px;border-radius:12px;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,#f0e6e0,#e7d6cd)}
+  .face::after{content:"";position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);
+    width:46px;height:46px;border-radius:50%;background:#e8d3c6}
+  .hair{position:absolute;left:50%;top:8px;transform:translateX(-50%);width:60px;height:34px;
+    border-radius:30px 30px 8px 8px}
+  .hair.before{background:var(--chocolate)}
+  .hair.after{background:linear-gradient(180deg,#5a3a24,#7a4a2c);width:66px;height:44px;border-radius:34px 34px 16px 16px}
+  .b-a .arrow{display:flex;align-items:center;justify-content:center;padding:0 .3rem;color:var(--rose);
+    font-size:1.3rem;background:var(--rose-soft)}
+  .b-a .keep{grid-column:1/-1;border-top:1px solid var(--line);padding:.6rem 1.15rem;font-size:.8rem;color:var(--muted)}
+  .b-a .keep b{color:var(--ink);font-weight:600}
+
+  /* ---- status banner ---- */
+  .banner{margin:1.8rem 0 0;background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--warn);
+    border-radius:12px;padding:1rem 1.15rem;font-size:.92rem;box-shadow:var(--shadow)}
+  .banner b{font-weight:600}
+
+  /* ---- sections ---- */
+  section{padding:2.6rem 0;border-bottom:1px solid var(--line)}
+  section:last-of-type{border-bottom:0}
+  .kicker{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;font-weight:600;color:var(--muted)}
+  .kicker.u{color:var(--rose)} .kicker.d{color:var(--teal)}
+  h2{font-family:var(--serif);font-weight:500;font-size:clamp(1.55rem,3.2vw,2.05rem);letter-spacing:-.015em;
+    margin:.35rem 0 .2rem;line-height:1.1}
+  h3{font-size:1.06rem;font-weight:600;margin:2rem 0 .5rem;letter-spacing:-.01em}
+  p{margin:.7rem 0}
+  .measure{max-width:66ch}
+  ul.clean{list-style:none;padding:0;margin:.7rem 0}
+  ul.clean li{padding:.32rem 0 .32rem 1.5rem;position:relative;max-width:66ch}
+  ul.clean li::before{content:"";position:absolute;left:.2rem;top:.95rem;width:6px;height:6px;border-radius:50%;
+    background:var(--rose)}
+  section.dev ul.clean li::before{background:var(--teal)}
+
+  /* ---- status pills ---- */
+  .pill{display:inline-flex;align-items:center;gap:.35rem;font-size:.7rem;font-weight:600;letter-spacing:.03em;
+    padding:.16rem .5rem;border-radius:999px;white-space:nowrap;vertical-align:middle;line-height:1.4}
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%}
+  .pill.done{background:var(--ok-soft);color:var(--ok)} .pill.done::before{background:var(--ok)}
+  .pill.mock{background:var(--warn-soft);color:var(--warn)} .pill.mock::before{background:var(--warn)}
+  .pill.road{background:var(--road-soft);color:var(--road)} .pill.road::before{background:var(--road)}
+  .legend{display:flex;flex-wrap:wrap;gap:.6rem;margin:.4rem 0 0}
+
+  /* ---- steps (real sequence → numbered) ---- */
+  ol.steps{list-style:none;counter-reset:s;padding:0;margin:1.2rem 0}
+  ol.steps li{counter-increment:s;position:relative;padding:.15rem 0 1.15rem 3rem;
+    border-left:2px solid var(--line);margin-left:1.1rem}
+  ol.steps li:last-child{border-left-color:transparent}
+  ol.steps li::before{content:counter(s,decimal-leading-zero);position:absolute;left:-1.1rem;top:-.1rem;
+    width:2.2rem;height:2.2rem;border-radius:50%;background:var(--rose-soft);color:var(--rose);
+    font-family:var(--mono);font-size:.82rem;font-weight:500;display:flex;align-items:center;justify-content:center}
+  ol.steps li h3{margin:.15rem 0 .2rem;font-size:1rem;font-weight:600}
+  ol.steps li p{margin:.15rem 0;color:#57474d;font-size:.94rem;max-width:60ch}
+
+  /* ---- cards ---- */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.9rem;margin:1.1rem 0}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:1.1rem 1.15rem;
+    box-shadow:var(--shadow)}
+  .card h3{margin:.1rem 0 .3rem;font-size:.98rem;font-weight:600;display:flex;justify-content:space-between;gap:.5rem;align-items:center}
+  .card p{margin:.2rem 0 0;font-size:.9rem;color:#57474d}
+
+  /* ---- code ---- */
+  pre{background:var(--ink);color:#f3e9ec;border-radius:12px;padding:1.1rem 1.2rem;overflow-x:auto;
+    font-family:var(--mono);font-size:.84rem;line-height:1.6;margin:1rem 0;box-shadow:var(--shadow)}
+  pre .c{color:#b79aa4} pre .k{color:#e79ab4} pre .s{color:#9fd0c6} pre .n{color:#e6c88a}
+  p code,li code,td code{background:var(--rose-soft);color:#7a2545;padding:.08rem .38rem;border-radius:5px}
+  section.dev p code,section.dev li code,section.dev td code{background:var(--teal-soft);color:#12554f}
+
+  /* ---- tables ---- */
+  .tbl{width:100%;overflow-x:auto;margin:1.1rem 0;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+  table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:520px}
+  th,td{text-align:left;padding:.66rem .9rem;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:#faf5f6}
+  tr:last-child td{border-bottom:0}
+  td code{font-size:.82em}
+
+  /* ---- swatch (signature: hair structure JSON) ---- */
+  .swatch-row{display:flex;flex-wrap:wrap;gap:.7rem;margin:1rem 0}
+  .swatch{display:flex;align-items:center;gap:.6rem;background:var(--paper);border:1px solid var(--line);
+    border-radius:11px;padding:.5rem .8rem .5rem .55rem;box-shadow:var(--shadow)}
+  .swatch .chip{width:34px;height:34px;border-radius:8px;flex:0 0 auto;border:1px solid rgba(0,0,0,.06)}
+  .swatch .k{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+  .swatch .v{font-size:.86rem;font-weight:500}
+
+  .note{background:var(--teal-soft);border:1px solid #bfe0da;border-radius:12px;padding:.9rem 1.1rem;
+    margin:1.1rem 0;font-size:.9rem;color:#12554f}
+  .note.warn{background:var(--warn-soft);border-color:#e8d3a3;color:#6a4a10}
+  section.dev .note{background:var(--teal-soft)}
+
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:.35rem 1rem;font-size:.9rem;margin:.9rem 0;max-width:60ch}
+  .kv dt{font-family:var(--mono);font-size:.8rem;color:var(--teal);font-weight:500}
+  .kv dd{margin:0;color:#4a3a40}
+
+  footer{max-width:1240px;margin:0 auto;padding:2.4rem clamp(1.1rem,4vw,3.4rem);color:var(--muted);font-size:.85rem}
+  footer .measure{max-width:74ch}
+  hr.soft{border:0;border-top:1px solid var(--line);margin:2rem 0}
+
+  @media (max-width:920px){
+    .shell{grid-template-columns:1fr}
+    .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);
+      padding:1.2rem clamp(1.1rem,4vw,3.4rem)}
+    nav.toc{display:grid;grid-template-columns:1fr 1fr;gap:0 .8rem;font-size:.85rem;margin-top:1rem}
+    nav.toc .grp{grid-column:1/-1}
+  }
+  @media (max-width:560px){
+    .b-a{grid-template-columns:1fr;max-width:none}
+    .b-a .arrow{padding:.4rem;transform:rotate(90deg)}
+    nav.toc{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="dot" aria-hidden="true"></span><span>HairView AI<small>핸드북 · v0.1 스캐폴드</small></span></div>
+    <nav class="toc" aria-label="목차">
+      <div class="grp u">사용자 문서</div>
+      <a href="#intro">서비스 소개</a>
+      <a href="#who">누가 쓰나요</a>
+      <a href="#flow">상담 흐름 9단계</a>
+      <a href="#privacy">개인정보·동의</a>
+      <a href="#result">결과 안내</a>
+      <a href="#now">지금 되는 것 / 예정</a>
+      <div class="grp d">개발자 문서</div>
+      <a href="#arch">아키텍처</a>
+      <a href="#start">빠른 시작·검증</a>
+      <a href="#api">API 계약</a>
+      <a href="#status-machine">상태 · 흐름</a>
+      <a href="#data">데이터 모델</a>
+      <a href="#provider">Provider · Mock</a>
+      <a href="#contract">타입 계약(enum)</a>
+      <a href="#labels">3구간 라벨</a>
+      <a href="#debt">알려진 부채</a>
+      <a href="#conv">컨벤션</a>
+    </nav>
+  </aside>
+
+  <main id="main">
+    <header class="hero">
+      <div class="eyebrow">미용실 AI 헤어 상담 · 사용자 &amp; 개발자 핸드북</div>
+      <h1>얼굴은 그대로,<br /><em>헤어스타일만</em> 바꿔서 미리 봅니다.</h1>
+      <p class="lede"><b>목표 제품:</b> 고객 얼굴을 촬영하고 원하는 참고 헤어를 고르면, 정체성은 유지한 채
+        스타일만 적용한 예상 이미지와 5초 영상을 만들어 상담에 씁니다. 이 문서는 그 <b>설계된 서비스를 어떻게 쓸지(사용자)</b>와
+        <b>지금 코드를 어떻게 돌리고 확장할지(개발자)</b>를 한 곳에 담되, <b>지금 실제로 되는 범위</b>를 칩으로 정직하게 구분합니다.</p>
+
+      <div class="b-a">
+        <div class="cell">
+          <div class="cap">시술 전</div>
+          <div class="face"><span class="hair before" aria-hidden="true"></span></div>
+        </div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="cell">
+          <div class="cap">AI 예상 결과</div>
+          <div class="face"><span class="hair after" aria-hidden="true"></span></div>
+        </div>
+        <div class="keep"><b>유지:</b> 얼굴·이목구비·피부톤·표정·배경 &nbsp;·&nbsp; <b>변경:</b> 길이·앞머리·컬·가르마·색·볼륨</div>
+      </div>
+
+      <div class="banner">
+        <b>지금 버전은 “기반 스캐폴드(v0.1)”입니다.</b> 백엔드·프론트 골격, 계약, Mock(모의) 생성 흐름이
+        동작·검증됐고, 실제 카메라·외부 AI·실 DB 연동은 <span class="pill road">로드맵</span> 입니다.
+        무엇이 실제로 되는지는 <a href="#now">지금 되는 것 / 예정</a>과 <a href="#labels">3구간 라벨</a>에서 정직하게 구분했습니다.
+      </div>
+    </header>
+
+    <!-- ============ 사용자 문서 ============ -->
+    <section id="intro">
+      <div class="kicker u">사용자 문서 · 01</div>
+      <h2>서비스 소개</h2>
+      <div class="note warn" style="margin-top:.6rem"><b>이 절은 “목표 제품”의 설계를 설명합니다.</b> 아래 흐름·정책은 제품이 지향하는 모습이며,
+        지금 v0.1에서 실제로 동작하는 범위는 각 항목의 상태 칩과 <a href="#now">지금 되는 것/예정</a>·<a href="#labels">3구간 라벨</a>을 보세요.</div>
+      <p class="measure">HairView AI는 미용실 상담을 돕는 도구로 <b>설계</b>됐습니다. 단순한 “AI 영상 사이트”가 아니라
+        <b>빠른 미리보기 → 고품질 스타일 합성 → 자연스러운 영상 시뮬레이션</b>을 잇는 상담 시스템을 지향합니다.
+        설계상 핵심은 영상보다 먼저 <b>얼굴 정체성을 지킨 결과 이미지</b>를 확정하고, 그 한 장을 영상으로 바꾸는 순서입니다
+        (현재 이미지·영상의 실제 생성은 <span class="pill road">로드맵</span>, 흐름 골격은 <span class="pill mock">Mock</span>).</p>
+      <p class="measure">설계 원칙상 참고 사진은 “그대로 복사”하지 않습니다. AI가 참고 헤어를 <b>구조(길이·앞머리·컬·색 등)</b>로
+        분해해 고객 얼굴에만 그 요소를 적용합니다 — “특정 연예인으로 바꿔 달라”가 아니라 헤어 특징만 빌려오는 방식입니다.
+        (지금은 분석이 <span class="pill mock">Mock</span>으로 고정 예시를 반환합니다.)</p>
+
+      <h3>참고 헤어를 이렇게 분해합니다</h3>
+      <div class="swatch-row">
+        <div class="swatch"><span class="chip" style="background:#3b2417" aria-hidden="true"></span><span><span class="k">color</span><br /><span class="v">다크 초콜릿 브라운</span></span></div>
+        <div class="swatch"><span class="chip" style="background:linear-gradient(135deg,#e8d6cc,#d9c3b6)" aria-hidden="true"></span><span><span class="k">length</span><br /><span class="v">턱선 단발(bob)</span></span></div>
+        <div class="swatch"><span class="chip" style="background:linear-gradient(135deg,#c9a58c,#a87c60)" aria-hidden="true"></span><span><span class="k">bangs</span><br /><span class="v">얇은 시스루뱅</span></span></div>
+        <div class="swatch"><span class="chip" style="background:linear-gradient(135deg,#7a4a2c,#5a3a24)" aria-hidden="true"></span><span><span class="k">curl</span><br /><span class="v">부드러운 안쪽 C컬</span></span></div>
+      </div>
+    </section>
+
+    <section id="who">
+      <div class="kicker u">사용자 문서 · 02</div>
+      <h2>누가 쓰나요</h2>
+      <div class="cards">
+        <div class="card"><h3>미용실(주 사용자)</h3><p>상담 시간을 줄이고, 시술 결과를 눈으로 보여주고, SNS 전후 영상과 상담 기록을 남기려는 매장. 태블릿·데스크톱에서 사용합니다.</p></div>
+        <div class="card"><h3>일반 사용자</h3><p>머리를 바꾸기 전 결과를 확인하고, 본인 사진으로 쇼츠·릴스를 만들고 싶은 사람. 모바일 웹에서 사용합니다.</p></div>
+        <div class="card"><h3>스타일 전문가</h3><p>헤어 디자이너·퍼스널컬러·웨딩·뷰티 콘텐츠 제작자. 상담과 콘텐츠 제작에 활용합니다.</p></div>
+      </div>
+      <p class="measure">초기 수익화는 개인 구독보다 <b>미용실용 B2B</b>에 맞춰져 있습니다.</p>
+    </section>
+
+    <section id="flow">
+      <div class="kicker u">사용자 문서 · 03</div>
+      <h2>상담은 이렇게 흘러갑니다</h2>
+      <p class="measure">아래는 상담이 진행되도록 <b>설계된 순서</b>입니다(대부분 단계는 아직 로드맵). 각 단계 오른쪽 칩이 <b>지금 버전의 실제 상태</b>입니다.</p>
+      <div class="legend">
+        <span class="pill done">구현·검증완료</span>
+        <span class="pill mock">Mock(모의)</span>
+        <span class="pill road">로드맵(예정)</span>
+      </div>
+      <ol class="steps">
+        <li><h3>사진 촬영 또는 업로드 <span class="pill road">로드맵</span></h3><p>브라우저 카메라로 정면 사진을 찍거나 기존 사진을 올립니다. 앱 설치가 필요 없습니다.</p></li>
+        <li><h3>촬영 품질 검사 <span class="pill road">로드맵</span></h3><p>얼굴이 한 명인지, 너무 작지 않은지, 정면에 가까운지 등을 기기에서 먼저 확인합니다(MediaPipe).</p></li>
+        <li><h3>참고 헤어 입력 <span class="pill road">로드맵</span></h3><p>참고 사진 업로드·카탈로그 선택·텍스트 설명 중 하나로 원하는 스타일을 전달합니다.</p></li>
+        <li><h3>스타일 구조 분석 <span class="pill mock">Mock</span></h3><p>AI가 참고 헤어를 길이·앞머리·컬·색 등 구조로 분해합니다. 지금은 모의 분석 결과가 반환됩니다.</p></li>
+        <li><h3>스타일 추천 <span class="pill road">로드맵</span></h3><p>얼굴형에 맞춘 추천 3가지와 이유·난이도·추천 컬러를 제안합니다. (미모·매력 점수는 매기지 않습니다.)</p></li>
+        <li><h3>합성 이미지 3장 생성 <span class="pill road">로드맵</span></h3><p>참고 최유사 / 얼굴형 보정 / 관리 쉬운 현실형 3가지를 만들어 비교합니다.</p></li>
+        <li><h3>영상 생성 <span class="pill mock">Mock</span></h3><p>고른 이미지 한 장을 5초·9:16 영상으로 바꿉니다. 지금은 모의 Provider로 전체 흐름(요청→상태→완료)만 동작합니다.</p></li>
+        <li><h3>QR·링크 공유 <span class="pill road">로드맵</span></h3><p>결과를 QR이나 공유 링크로 고객에게 전달합니다.</p></li>
+        <li><h3>상담 기록 저장 <span class="pill road">로드맵</span></h3><p>상담 내용을 매장 고객 기록에 남깁니다(설계 원칙: 사진 없이 텍스트 중심).</p></li>
+      </ol>
+    </section>
+
+    <section id="privacy">
+      <div class="kicker u">사용자 문서 · 04</div>
+      <h2>개인정보와 동의</h2>
+      <div class="note warn" style="margin-top:.6rem"><b>아래는 지켜야 할 정책·설계 원칙입니다(구현은 로드맵).</b>
+        얼굴을 다루는 화면(카메라·업로드·생성)이 붙을 때 이 원칙대로 구현합니다. 값(저장 기간 등)은 기획 기준 예시로 확정 전입니다.</div>
+      <p class="measure">얼굴 사진은 개인정보로 다룹니다. 서비스는 고객을 <b>인증·식별</b>하려고 얼굴 특징을 쓰지 않고,
+        얼굴 임베딩을 장기 저장하지 않는 것을 원칙으로 합니다.</p>
+      <ul class="clean">
+        <li>생성 전, 외부 AI로 사진이 전송될 수 있다는 점과 저장 기간·삭제 방법을 안내한다(원칙).</li>
+        <li>동의는 4가지로 나뉜다: 얼굴 처리 · 외부 AI 전송 · 저장 · 결과 공유. <b>동의 없이 생성 API를 호출하지 않는다.</b></li>
+        <li>저장 기간(기획 기준 예시, 확정 전): 참고 사진은 분석 직후 삭제 · 고객 원본은 기본 24시간 또는 상담 종료 후 · 결과는 7~30일.</li>
+        <li>브라우저에 얼굴 사진을 저장하지 않는다(localStorage·IndexedDB 등 금지) — FE 컨벤션.</li>
+        <li>연예인 참고 사진은 헤어 요소만 뽑고 원본은 삭제하며, 이름은 저장·광고에 쓰지 않는다.</li>
+      </ul>
+    </section>
+
+    <section id="result">
+      <div class="kicker u">사용자 문서 · 05</div>
+      <h2>결과 안내</h2>
+      <div class="note warn"><b>AI로 생성한 예상 이미지입니다.</b> 실제 시술 결과는 모질·모발 상태·두상·시술 방법에 따라
+        달라질 수 있습니다. 결과·공유 화면에는 이 안내가 항상 함께 표시되도록 <b>설계</b>했습니다(해당 화면은 <span class="pill road">로드맵</span>).</div>
+    </section>
+
+    <section id="now">
+      <div class="kicker u">사용자 문서 · 06</div>
+      <h2>지금 되는 것 / 예정</h2>
+      <p class="measure">정직하게 구분합니다. 지금 v0.1은 <b>제품의 토대(뼈대)</b>이며, 고객이 바로 쓰는 완성 화면은 아직입니다.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>영역</th><th>지금 상태</th><th>설명</th></tr></thead>
+        <tbody>
+          <tr><td>백엔드 생성 흐름(요청→상태→완료)</td><td><span class="pill mock">Mock</span></td><td>모의 Provider로 전 과정이 동작·검증됨. 실제 영상은 아직 생성 안 됨.</td></tr>
+          <tr><td>스타일 구조 분석 API</td><td><span class="pill mock">Mock</span></td><td>고정된 예시 구조를 반환.</td></tr>
+          <tr><td>랜딩·기본 화면(반응형)</td><td><span class="pill done">완료</span></td><td>웹·모바일 반응형 뼈대. 상담 화면은 아직 없음.</td></tr>
+          <tr><td>카메라·촬영 품질검사</td><td><span class="pill road">로드맵</span></td><td>실기기·MediaPipe 필요.</td></tr>
+          <tr><td>실제 이미지·영상 생성(Gemini·PixVerse·fal·Wan)</td><td><span class="pill road">로드맵</span></td><td>외부 API 키·비용 필요.</td></tr>
+          <tr><td>상담 저장·QR 공유·크레딧</td><td><span class="pill road">로드맵</span></td><td>실 DB·스토리지 연동 필요.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- ============ 개발자 문서 ============ -->
+    <section id="arch" class="dev">
+      <div class="kicker d">개발자 문서 · 01</div>
+      <h2>아키텍처</h2>
+      <p class="measure">두 개의 독립 저장소로 구성됩니다. 프론트는 외부 AI를 직접 부르지 않고 항상 백엔드를 경유합니다
+        (<code>FE → apimgr → Provider → apimgr → FE</code>).</p>
+      <div class="cards">
+        <div class="card"><h3>hairsoui <span class="pill done">FE</span></h3><p>Next.js 15 App Router · TypeScript strict · Tailwind v4 · Zod. 반응형(웹+모바일 한 코드베이스).</p></div>
+        <div class="card"><h3>apimgr <span class="pill done">BE</span></h3><p>Python 3.12 · FastAPI · Pydantic v2. 계층: <code>api → services → repositories/providers → external</code>, <code>core</code>는 leaf.</p></div>
+      </div>
+      <div class="note"><b>규칙 우선 결정:</b> 기획서는 BE를 TypeScript로 적었으나, 이 저장소의 루트 <code>CLAUDE.md</code>가
+        <code>apimgr = Python·FastAPI</code>로 규정하므로 규칙을 우선해 Python으로 구축했습니다.</div>
+      <h3>계층 의존 방향(게이트)</h3>
+      <pre><span class="c"># 실제 grep으로 0건 검증됨</span>
+api (schemas) ──▶ services ──▶ repositories / providers ──▶ external
+                                   (domain)
+core = leaf  <span class="c"># app 내 어떤 모듈도 import 안 함</span>
+<span class="c"># core→domain 0 · domain→api·services 0 · repositories/providers→api 0</span></pre>
+    </section>
+
+    <section id="start" class="dev">
+      <div class="kicker d">개발자 문서 · 02</div>
+      <h2>빠른 시작 · 검증</h2>
+      <h3>백엔드 (apimgr)</h3>
+      <pre><span class="k">cd</span> apimgr
+python -m venv .venv
+.venv/Scripts/python -m pip install -e <span class="s">".[dev]"</span>   <span class="c"># macOS/Linux: .venv/bin/python</span>
+.venv/Scripts/python -m pytest -q                <span class="c"># → 44 passed</span>
+.venv/Scripts/python -m uvicorn main:app --reload <span class="c"># http://127.0.0.1:8000/docs</span></pre>
+      <h3>프론트엔드 (hairsoui)</h3>
+      <pre><span class="k">cd</span> hairsoui
+npm install
+npm run typecheck   <span class="c"># → 0 (tsc --noEmit, strict + noUncheckedIndexedAccess)</span>
+npm run test        <span class="c"># → 12 passed (node --test + tsx)</span>
+npm run build       <span class="c"># → 0 (next build)</span>
+npm run lint        <span class="c"># → 0 (no-explicit-any: error)</span></pre>
+      <div class="note"><b>검증 결과(설치 시점 실측):</b> BE <code>pytest 44 passed</code> · compile OK · 의존방향 게이트 0 ·
+        TestClient 스모크(202/상태조회/idempotent/404/오류 envelope). FE <code>typecheck 0 · test 12 · build 0 · lint 0</code>.
+        버전: fastapi 0.139.0 · pydantic 2.13.4 · next 15.5.20 · react 19.2.7 · zod 4.4.3 · tailwind 4.3.2.
+        <br />※ 이 수치는 로컬 실행 로그 기준입니다.</div>
+    </section>
+
+    <section id="api" class="dev">
+      <div class="kicker d">개발자 문서 · 03</div>
+      <h2>API 계약</h2>
+      <p class="measure">정본은 FastAPI 자동 OpenAPI(<code>/openapi.json</code>, <code>/docs</code>)입니다. 와이어 키는
+        <b>snake_case</b>. prefix는 <code>/api/v1</code>(공개 결과 <code>/share/{share_token}</code>만 예외).</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Method · Path</th><th>코드</th><th>상태</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET /health</code></td><td>200</td><td><span class="pill done">완료</span></td></tr>
+          <tr><td><code>POST /api/v1/consultations</code></td><td>201</td><td><span class="pill done">완료(스텁)</span></td></tr>
+          <tr><td><code>POST /api/v1/style/analyze</code></td><td>200</td><td><span class="pill mock">Mock</span></td></tr>
+          <tr><td><code>POST /api/v1/video-generations</code></td><td>202</td><td><span class="pill mock">Mock·idempotent</span></td></tr>
+          <tr><td><code>GET /api/v1/generations/{id}</code></td><td>200</td><td><span class="pill done">완료</span></td></tr>
+          <tr><td><code>POST /api/v1/webhooks/pixverse</code></td><td>200</td><td><span class="pill mock">골격</span></td></tr>
+          <tr><td><code>POST /api/v1/assets/upload</code></td><td>201</td><td><span class="pill road">로드맵</span></td></tr>
+          <tr><td><code>POST /api/v1/style/recommend</code></td><td>200</td><td><span class="pill road">로드맵</span></td></tr>
+          <tr><td><code>POST /api/v1/style/image-generate</code></td><td>202</td><td><span class="pill road">로드맵</span></td></tr>
+          <tr><td><code>POST /api/v1/results/{id}/share</code></td><td>201</td><td><span class="pill road">로드맵</span></td></tr>
+          <tr><td><code>GET /share/{share_token}</code></td><td>200</td><td><span class="pill road">로드맵(공개)</span></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>영상 생성 요청 · 응답</h3>
+      <pre><span class="c">// POST /api/v1/video-generations  →  202</span>
+{ <span class="k">"consultation_id"</span>: <span class="s">"..."</span>, <span class="k">"image_asset_id"</span>: <span class="s">"..."</span>, <span class="k">"prompt"</span>: <span class="s">"turn head..."</span>,
+  <span class="k">"duration_seconds"</span>: <span class="n">5</span>, <span class="k">"aspect_ratio"</span>: <span class="s">"9:16"</span>, <span class="k">"quality"</span>: <span class="s">"720p"</span>,
+  <span class="k">"idempotency_key"</span>: <span class="s">"..."</span> }        <span class="c">// image_asset_id = asset id (URL 아님), duration ∈ {5,8}</span>
+
+<span class="c">// 202 응답</span>
+{ <span class="k">"generation_id"</span>: <span class="s">"uuid"</span>, <span class="k">"status"</span>: <span class="s">"SUBMITTED"</span> }
+
+<span class="c">// GET /api/v1/generations/{id}  →  200 (image·video 공통)</span>
+{ <span class="k">"generation_id"</span>:<span class="s">"uuid"</span>, <span class="k">"generation_type"</span>:<span class="s">"VIDEO"</span>, <span class="k">"status"</span>:<span class="s">"PROCESSING"</span>,
+  <span class="k">"provider"</span>:<span class="s">"MOCK"</span>, <span class="k">"estimated_cost_usd"</span>:<span class="n">0.0</span>, <span class="k">"error_code"</span>:<span class="k">null</span> }</pre>
+
+      <h3>오류는 항상 이 형태(envelope)</h3>
+      <pre>{ <span class="k">"error"</span>: { <span class="k">"error_code"</span>: <span class="s">"NOT_FOUND"</span>, <span class="k">"message"</span>: <span class="s">"..."</span>, <span class="k">"request_id"</span>: <span class="k">null</span> } }</pre>
+      <p class="measure">성공 응답은 envelope로 감싸지 않으므로 클라이언트는 HTTP status로 분기합니다.
+        <code>404 → NOT_FOUND</code>, <code>422 → VALIDATION_ERROR</code>, 미처리 예외 <code>500 → INTERNAL_ERROR</code>(스택 미노출).</p>
+    </section>
+
+    <section id="status-machine" class="dev">
+      <div class="kicker d">개발자 문서 · 04</div>
+      <h2>생성 상태 · 흐름</h2>
+      <p class="measure">생성은 즉시 끝나지 않습니다. <code>202 + generation_id</code>로 접수하고, Worker가 Provider를
+        폴링/Webhook으로 따라가며 상태를 전이시킵니다. FE는 <code>GET .../generations/{id}</code>로 폴링합니다.</p>
+      <pre>CREATED → UPLOADING → SUBMITTED → QUEUED → PROCESSING → POST_PROCESSING → SUCCEEDED → EXPIRED
+                                              └────────────────────────────▶ FAILED / CANCELED</pre>
+      <ul class="clean">
+        <li>상태 전이 규칙은 <code>domain/state_machine.py</code> 한 곳에서만 관리(<b>타입별</b>: IMAGE는 <code>POST_PROCESSING</code> 없음).</li>
+        <li>Provider가 중간 상태를 건너뛰고 완료를 알려도 정체되지 않도록 <b>전방 스킵</b>을 허용.</li>
+        <li>역행·중복·순서 뒤바뀜 이벤트는 <b>no-op(무시)</b> — 이미 <code>SUCCEEDED</code>인 작업을 늦은 이벤트로 되돌리지 않음.</li>
+        <li>영상은 <code>provider SUCCEEDED → 내부 POST_PROCESSING</code>(후처리 대기), Worker 완료 시 <code>SUCCEEDED</code>.</li>
+      </ul>
+    </section>
+
+    <section id="data" class="dev">
+      <div class="kicker d">개발자 문서 · 05</div>
+      <h2>데이터 모델</h2>
+      <p class="measure">10개 테이블 설계. 정본은 <code>apimgr/docs/DB_SCHEMA.md</code>, 참고 DDL은
+        <code>apimgr/db/schema.sql</code>입니다.</p>
+      <div class="note warn"><b>중요:</b> <code>schema.sql</code>은 <b>실행하지 않는 참고 설계</b>입니다. 실제 스키마 적용·마이그레이션은
+        사용자가 직접 관리합니다(자동 변경 금지).</div>
+      <div class="kv">
+        <dt>salons / salon_members</dt><dd>매장 · 직원(스키마에 <code>password_hash</code> 컬럼 설계 — 자체 JWT 인증 <b>구현은 로드맵</b>)</dd>
+        <dt>customers</dt><dd>고객(전화번호는 암호화 컬럼)</dd>
+        <dt>consultations</dt><dd>상담 세션</dd>
+        <dt>assets</dt><dd>파일 메타데이터만(원본·공개 URL 저장 금지)</dd>
+        <dt>style_references / recommendations</dt><dd>참고 헤어 구조(JSON) · 추천 3종</dd>
+        <dt>generations</dt><dd>생성 작업(상태·provider·비용·idempotency_key UNIQUE)</dd>
+        <dt>consents</dt><dd>동의 4종 기록</dd>
+        <dt>credit_transactions</dt><dd>크레딧 원장(RESERVE/CHARGE/REFUND/ADJUST)</dd>
+      </div>
+      <ul class="clean">
+        <li>enum형 컬럼은 네이티브 ENUM 대신 <code>text + CHECK</code>(그린필드 값 추가·락 회피).</li>
+        <li>모든 시각은 <code>timestamptz</code>(ISO 8601 + 오프셋). 금액은 <code>numeric(12,4)</code>.</li>
+        <li><code>generations.idempotency_key</code>에 UNIQUE 제약을 <b>설계</b>(실 DB에서 동시성 중복 방지의 근거). 단 지금 스캐폴드는 in-memory 근사이며, 실 방지는 DB 적용 후입니다.</li>
+      </ul>
+    </section>
+
+    <section id="provider" class="dev">
+      <div class="kicker d">개발자 문서 · 06</div>
+      <h2>Provider 추상화 · Mock</h2>
+      <p class="measure">외부 AI는 공통 인터페이스(<code>base.py</code>) 뒤에 둡니다. Service는 특정 Provider 전용 필드에
+        의존하지 않습니다. <b>기본값은 Mock</b>(외부 키·비용 불필요).</p>
+      <div class="kv">
+        <dt>image_analysis</dt><dd>사진·헤어 구조 분석 (Gemini 예정)</dd>
+        <dt>image_generation</dt><dd>얼굴 유지 헤어 합성 (Gemini 편집 예정)</dd>
+        <dt>video_generation</dt><dd>이미지→영상 (Provider는 env/Registry로 교체 — PixVerse·fal·Wan 계열 후보, 모델명·가격은 unverified·하드코딩 안 함)</dd>
+      </div>
+      <p class="measure">Mock 영상 Provider는 8가지 시나리오를 결정적으로 재현합니다:
+        <code>SUCCESS · SLOW · SUBMIT_FAIL · RATE_LIMIT · NO_BALANCE · POLICY_BLOCK · ASYNC_FAIL · DOWNLOAD_FAIL</code>.</p>
+      <div class="note warn"><b>미검증 외부 사실:</b> PixVerse 가격·모델명(V6/C1)·기능 등은 기획서 주장(unverified)이라
+        코드에 하드코딩하지 않고 환경설정(env)으로만 관리합니다.</div>
+    </section>
+
+    <section id="contract" class="dev">
+      <div class="kicker d">개발자 문서 · 07</div>
+      <h2>타입 계약(enum)</h2>
+      <p class="measure">FE Zod와 BE Pydantic이 <b>같은 문자열 enum</b>을 써야 합니다. 정본은
+        <code>contract/enums.json</code>(양쪽 사본), 양쪽 parity 테스트가 값·순서를 대조합니다.</p>
+      <div class="kv">
+        <dt>GenerationStatus</dt><dd>10개 (CREATED … EXPIRED)</dd>
+        <dt>ErrorCode</dt><dd>18개 (ASSET_INVALID … UNKNOWN)</dd>
+        <dt>ProviderName</dt><dd>6개 (MOCK/GEMINI/PIXVERSE/FAL_WAN/WAN_CLOUD_API/SELF_HOSTED_WAN)</dd>
+        <dt>VideoProviderName</dt><dd>5개 (GEMINI 제외)</dd>
+      </div>
+      <div class="note"><b>parity 테스트가 강제하는 축은 enum 값·순서뿐</b>입니다. 와이어 필드명은 snake_case로
+        통일돼 있으나(구조적) 별도 테스트로 강제하진 않고, 날짜 형식·Nullable/타입 축도 컨벤션으로 정렬될 뿐 미강제입니다(로드맵).
+        “4축 전부 테스트 강제”라고 주장하지 않습니다.</div>
+    </section>
+
+    <section id="labels" class="dev">
+      <div class="kicker d">개발자 문서 · 08</div>
+      <h2>3구간 라벨 — 무엇이 진짜 되나</h2>
+      <p class="measure">이 프로젝트의 정직성 앵커입니다. 정본은 <code>docs/LABELS.md</code>.</p>
+      <div class="cards">
+        <div class="card"><h3>구현·검증완료 <span class="pill done">실행됨</span></h3><p>도메인·상태머신·Mock Provider·in-memory Repo·Service·라우터·오류 envelope·계약 parity. BE pytest 44 / FE 0·12·0·0.</p></div>
+        <div class="card"><h3>Mock <span class="pill mock">모의</span></h3><p>모든 Provider 기본 Mock. 비용은 <code>Decimal("0.00")</code> placeholder. 저장소는 단일 프로세스 in-memory.</p></div>
+        <div class="card"><h3>미구현 <span class="pill road">로드맵</span></h3><p>실 외부 AI·실 DB·R2·FFmpeg·카메라·MediaPipe·인증(JWT)·세 모드 화면·PWA.</p></div>
+      </div>
+    </section>
+
+    <section id="debt" class="dev">
+      <div class="kicker d">개발자 문서 · 09</div>
+      <h2>알려진 부채 · 주의</h2>
+      <ul class="clean">
+        <li><b>금전 정밀도:</b> 와이어 금전값은 float(표시용 추정, FE <code>z.number()</code> 일치). DB 원장은 <code>numeric/Decimal</code> 정밀. 실 과금 API 도입 시 string decimal / minor-unit로 재검토 필요.</li>
+        <li><b>in-memory 스캐폴드:</b> webhook 중복 방지·저장소가 단일 프로세스용 — 운영은 DB 영속 필요.</li>
+        <li><b>webhook 서명:</b> 스캐폴드 제네릭 HMAC(ts+payload). 실 Provider 규격은 unverified이며, 이벤트 필드는 서명된 payload 본문에서 파생해야 함(로드맵).</li>
+        <li><b>Codex 외부검증:</b> 3회 모두 미통과(캡 소진). 지적된 실버그는 수정·내부 재검증했으나, 수정본에 대한 Codex 재검증은 없음. “Codex 통과”가 아님.</li>
+      </ul>
+    </section>
+
+    <section id="conv" class="dev">
+      <div class="kicker d">개발자 문서 · 10</div>
+      <h2>컨벤션 요약</h2>
+      <ul class="clean">
+        <li>FE: <code>any</code> 금지, 외부 응답은 <code>schema.parse()</code>. Server Component 기본, <code>"use client"</code>는 경계에만.</li>
+        <li>와이어 snake_case는 API 경계에 한정, FE 내부(props·훅)는 camelCase 허용.</li>
+        <li>BE: Router에서 SQL·외부 AI 직접 호출 금지 → Service 위임. 트랜잭션 안에서 긴 외부 호출 금지.</li>
+        <li>자격증명·얼굴 URL·Base64를 로그에 남기지 않음. <code>.env.example</code>는 placeholder만.</li>
+        <li>진입점 문서: <code>apimgr/CLAUDE.md</code> · <code>hairsoui/CLAUDE.md</code> · 상태 <code>docs/LABELS.md</code>.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <hr class="soft" />
+  <p class="measure"><b>HairView AI 핸드북 · v0.1(스캐폴드).</b> 이 문서는 실제 산출물(코드·검증 로그·계약 문서)에 근거해 작성했으며,
+    “지금 되는 것 / 예정”을 정직하게 구분했습니다. 검증 수치는 로컬 실행 로그 기준입니다.</p>
+  <p class="measure">전체 상태·부채의 단일 출처는 <code>docs/LABELS.md</code>와 각 저장소 <code>CLAUDE.md</code>입니다.
+    이 파일은 <code>docs/index.html</code>로 로컬에서 열어 볼 수 있습니다(외부로 커밋·푸시하지 않음).</p>
+</footer>
+</body>
+</html>
