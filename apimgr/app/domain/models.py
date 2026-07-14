@@ -65,3 +65,42 @@ class CreditTransaction:
     actual_cost_usd: Decimal | None = None
     idempotency_key: str | None = None
     created_at: datetime = field(default_factory=_utcnow)
+
+
+@dataclass
+class Asset:
+    """파일 메타데이터. assets 테이블 대응(원본·공개 URL 미저장, §4.13)."""
+
+    id: str
+    owner_type: str  # SALON_MEMBER / CUSTOMER / SYSTEM
+    asset_type: str  # FACE_SOURCE / GENERATED_VIDEO 등
+    storage_key: str
+    mime_type: str
+    byte_size: int
+    owner_id: str | None = None  # auth.users(id)
+    consultation_id: str | None = None  # MVP nullable
+    width: int | None = None
+    height: int | None = None
+    sha256: str | None = None
+    status: str = "ACTIVE"
+    expires_at: datetime | None = None  # FACE_SOURCE=+24h / GENERATED_VIDEO=+7d
+    deleted_at: datetime | None = None
+    created_at: datetime = field(default_factory=_utcnow)
+
+
+@dataclass
+class Consent:
+    """동의 1건. consents 테이블 대응. 없으면 CONSENT_REQUIRED(§3.9)."""
+
+    id: str
+    consent_type: str  # FACE_PROCESSING / EXTERNAL_AI_TRANSFER / STORAGE / RESULT_SHARE
+    granted: bool
+    policy_version: str
+    account_id: str | None = None  # auth.users(id)
+    consultation_id: str | None = None  # MVP nullable
+    customer_id: str | None = None  # MVP nullable
+    ip_hash: str | None = None
+    user_agent: str | None = None
+    granted_at: datetime | None = None
+    revoked_at: datetime | None = None
+    created_at: datetime = field(default_factory=_utcnow)

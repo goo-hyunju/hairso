@@ -1,7 +1,10 @@
 # apimgr — DB 스키마 설계 (정본)
 
-> 정본 = 이 문서. `db/schema.sql` 은 이 설계의 참고용 DDL(실행 안 함). 실제 적용/마이그레이션은 사용자 관리(§4.19).
-> ⚠️ 마이그레이션 실행·실 DB 변경은 이번 산출에 **포함되지 않는다**(설계·DDL 초안까지만).
+> 정본 = 이 문서. `db/schema.sql` 은 전체 10테이블 참고용 DDL. 실제 적용/마이그레이션은 사용자 관리(§4.19).
+>
+> **영상 MVP 적용 상태(2026-07-14):** `assets`·`generations`·`consents` **3테이블을 Supabase(project_ref=gtbdiiunozsbbdajmick)에 적용함.**
+> 마이그레이션: `db/migrations/0001_video_mvp.sql`. 변경점: `consultation_id`/`customer_id` nullable+FK제거, `auth.users` 참조(`owner_id`/`created_by`/`account_id`), RLS 전체차단(정책 0개 = BE service_role 만 접근), Storage private bucket `hairview-assets`.
+> 나머지 7테이블(salons/salon_members/customers/consultations/style_references/style_recommendations/credit_transactions)은 **로드맵 유지**(미적용). 상세 설계·계획: `docs/superpowers/specs/2026-07-14-video-mvp-db-schema-design.md`, `docs/superpowers/plans/2026-07-14-video-mvp-db-schema.md`.
 
 ## 원칙
 - UUID PK(`gen_random_uuid()`). 모든 시각 `timestamptz`(ISO8601+TZ). enum = `text` + `CHECK`(D10).
