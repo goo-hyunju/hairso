@@ -45,10 +45,15 @@ class Settings:
     # 로컬 이미지 생성(LOCAL Provider) — 별도 추론 서비스(ml/serve.py) URL.
     local_inference_url: str = field(default_factory=lambda: _get("LOCAL_INFERENCE_URL", "http://127.0.0.1:8188"))
 
-    # 에셋 저장소 — LOCAL_DISK(기본, 자격증명 불필요) 또는 SUPABASE(로드맵, service_role 키 필요).
+    # 에셋 저장소 — LOCAL_DISK(기본, 자격증명 불필요) 또는 SUPABASE(service_role/secret 키 필요).
     # 로컬 디스크 루트: 고객 얼굴/결과가 저장되므로 저장소 밖 경로 사용(§4.13 — repo 밖).
     asset_store_backend: str = field(default_factory=lambda: _get("ASSET_STORE_BACKEND", "LOCAL_DISK"))
     asset_local_root: str = field(default_factory=lambda: _get("ASSET_LOCAL_ROOT", ""))
+
+    # Supabase Storage (ASSET_STORE_BACKEND=SUPABASE 일 때 서버측 업로드용).
+    # secret 키(sb_secret_... = service_role 역할)는 로그 출력 금지(§0.14). 실값은 .env 만.
+    supabase_secret_key: str = field(default_factory=lambda: _get("SUPABASE_SECRET_KEY"))
+    supabase_storage_bucket: str = field(default_factory=lambda: _get("SUPABASE_STORAGE_BUCKET", "hairview-assets"))
 
     # 모델 토큰 (Registry — env 로만, 하드코딩 금지). 미설정 시 빈 값.
     pixverse_video_model: str = field(default_factory=lambda: _get("PIXVERSE_VIDEO_MODEL"))

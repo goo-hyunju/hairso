@@ -1,4 +1,4 @@
-[project]
+﻿[project]
 name = "apimgr"
 version = "0.1.0"
 description = "HairView AI backend (FastAPI) — 스캐폴드"
@@ -13,6 +13,7 @@ dependencies = [
     "httpx>=0.27",
     "psycopg[binary]>=3.2",
     "PyJWT[crypto]>=2.8",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
@@ -37,3 +38,4 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["app"]
+

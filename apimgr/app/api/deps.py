@@ -1,4 +1,4 @@
-"""의존성 주입(DI) — Service·Provider·Repository 를 라우터에 주입한다.
+﻿"""의존성 주입(DI) — Service·Provider·Repository 를 라우터에 주입한다.
 
 Repository: DATABASE_URL 설정 시 Supabase(psycopg), 없으면 InMemory(스캐폴드/테스트).
 기본 Provider 는 Mock(규칙 §0.16).
@@ -7,18 +7,28 @@ Repository: DATABASE_URL 설정 시 Supabase(psycopg), 없으면 InMemory(스캐
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from fastapi import HTTPException, Request
 
 from app.api.auth import SupabaseJWTVerifier
 from app.core.config import get_settings
+from app.providers.image_generation.base import ImageProvider
+from app.providers.storage.base import AssetStore
+from app.providers.storage.local_disk import LocalDiskAssetStore
 from app.providers.video_generation.mock import MockScenario, MockVideoProvider
+from app.repositories.asset_repository import AssetRepository, InMemoryAssetRepository
 from app.repositories.generation_repository import (
     GenerationRepository,
     InMemoryGenerationRepository,
 )
+from app.services.asset_service import AssetService
 from app.services.generation_service import GenerationService
 from app.services.webhook_service import WebhookService
+
+# ASSET_LOCAL_ROOT 미설정 시 기본: 저장소(repo) 밖 rengoo/models(§4.13 — 고객 얼굴/결과 repo 밖).
+# deps.py = apimgr/app/api/deps.py → parents[4] = rengoo.
+_DEFAULT_ASSET_ROOT = Path(__file__).resolve().parents[4] / "models"
 
 
 @lru_cache(maxsize=1)
@@ -48,6 +58,47 @@ def get_webhook_service() -> WebhookService:
 def get_default_video_provider() -> MockVideoProvider:
     # 기본은 Mock. 실 Provider(PixVerse/fal)는 config.default_video_provider 로 로드맵 전환.
     return MockVideoProvider(MockScenario.SUCCESS)
+
+
+@lru_cache(maxsize=1)
+def get_asset_store() -> AssetStore:
+    """에셋 바이트 저장소 — SUPABASE(키 필요) 또는 LOCAL_DISK(기본, 자격증명 불필요)."""
+    s = get_settings()
+    if s.asset_store_backend.upper() == "SUPABASE":
+        if not (s.supabase_url and s.supabase_secret_key):
+            raise RuntimeError("ASSET_STORE_BACKEND=SUPABASE 이나 SUPABASE_URL/SUPABASE_SECRET_KEY 미설정")
+        from app.providers.storage.supabase import SupabaseAssetStore
+
+        return SupabaseAssetStore(s.supabase_url, s.supabase_secret_key, s.supabase_storage_bucket)
+    return LocalDiskAssetStore(s.asset_local_root or str(_DEFAULT_ASSET_ROOT))
+
+
+@lru_cache(maxsize=1)
+def get_asset_repository() -> AssetRepository:
+    # DATABASE_URL 있으면 실 DB(Supabase assets), 없으면 인메모리(테스트·오프라인).
+    s = get_settings()
+    if s.database_url:
+        from app.repositories.supabase_asset_repository import SupabaseAssetRepository
+
+        return SupabaseAssetRepository(s.database_url)
+    return InMemoryAssetRepository()
+
+
+@lru_cache(maxsize=1)
+def get_asset_service() -> AssetService:
+    return AssetService(get_asset_store(), get_asset_repository())
+
+
+def get_default_image_provider() -> ImageProvider:
+    """기본 이미지 Provider — LOCAL_SD(로컬 추론 서비스) 또는 Mock."""
+    s = get_settings()
+    if s.default_image_provider.upper() == "LOCAL_SD":
+        from app.providers.image_generation.local import LocalImageProvider
+
+        return LocalImageProvider(get_asset_store(), s.local_inference_url)
+    from app.providers.image_generation.mock import MockImageProvider
+
+    return MockImageProvider(MockScenario.SUCCESS, processing_polls=0, store=get_asset_store())
 
 
 @lru_cache(maxsize=1)
@@ -81,3 +132,4 @@ def get_optional_user(request: Request) -> str | None:
         raise HTTPException(status_code=401, detail="UNAUTHORIZED")
     sub = payload.get("sub")
     return str(sub) if sub is not None else None
+
