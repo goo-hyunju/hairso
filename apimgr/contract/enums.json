@@ -6,12 +6,12 @@
   ],
   "GenerationType": ["IMAGE", "VIDEO"],
   "ProviderName": [
-    "MOCK", "GEMINI", "PIXVERSE", "FAL_WAN", "WAN_CLOUD_API", "SELF_HOSTED_WAN"
+    "MOCK", "GEMINI", "PIXVERSE", "FAL_WAN", "WAN_CLOUD_API", "SELF_HOSTED_WAN", "LOCAL_SD"
   ],
   "VideoProviderName": [
     "PIXVERSE", "FAL_WAN", "WAN_CLOUD_API", "SELF_HOSTED_WAN", "MOCK"
   ],
-  "ImageProviderName": ["GEMINI", "MOCK"],
+  "ImageProviderName": ["GEMINI", "MOCK", "LOCAL_SD"],
   "ProviderJobStatus": ["PENDING", "PROCESSING", "SUCCEEDED", "FAILED"],
   "ErrorCode": [
     "ASSET_INVALID", "ASSET_NOT_FOUND", "CONSENT_REQUIRED", "GENERATION_DUPLICATED",

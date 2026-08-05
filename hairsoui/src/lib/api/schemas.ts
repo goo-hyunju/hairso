@@ -33,6 +33,7 @@ export const providerNameSchema = z.enum([
   "FAL_WAN",
   "WAN_CLOUD_API",
   "SELF_HOSTED_WAN",
+  "LOCAL_SD",
 ]);
 export type ProviderName = z.infer<typeof providerNameSchema>;
 
@@ -46,7 +47,7 @@ export const videoProviderNameSchema = z.enum([
 ]);
 export type VideoProviderName = z.infer<typeof videoProviderNameSchema>;
 
-export const imageProviderNameSchema = z.enum(["GEMINI", "MOCK"]);
+export const imageProviderNameSchema = z.enum(["GEMINI", "MOCK", "LOCAL_SD"]);
 export type ImageProviderName = z.infer<typeof imageProviderNameSchema>;
 
 // 오류코드도 enum 으로 강제(status 응답 error_code parity — #13).

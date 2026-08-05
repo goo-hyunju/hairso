@@ -4,9 +4,7 @@
 즉시 SUCCEEDED 로 보고한다(외부 비동기 Provider 와 달리 폴링 대기 없음 — 인터페이스는 동일 유지).
 
 얼굴 바이트는 AssetStore 에서만 읽고 로그에 남기지 않는다(§0.15). 비용은 로컬이라 0.00(요금 없음).
-
-⚠️ (1)단계 임시: provider 이름을 MOCK 으로 보고한다. 정식 `LOCAL_SD` enum + DB check 제약 +
-    FE/BE 계약 parity 는 (2)단계에서 마이그레이션과 함께(§4.19). 여기선 DB·계약을 건드리지 않는다.
+provider 이름은 `LOCAL_SD`(§4.8 self-hosted, DB check 제약·FE/BE 계약 parity 반영됨).
 """
 
 from __future__ import annotations
@@ -38,8 +36,6 @@ class LocalImageProvider(ImageProvider):
         self._base_url = base_url.rstrip("/")
         self._steps = steps
         self._timeout = timeout_s
-        # 동일 프로세스 내 submit→get_status 연결용(로컬 동기). 실 비동기/멀티프로세스는 (2)에서 DB.
-        self._outputs: dict[str, str] = {}
 
     @staticmethod
     def face_key(face_asset_id: str) -> str:
@@ -74,17 +70,16 @@ class LocalImageProvider(ImageProvider):
         if resp.status_code != 200:
             raise GenerationFailed(f"local inference status {resp.status_code}")
 
-        out_key = self.output_key(job_id)
-        self._store.save(out_key, resp.content, "image/png")
-        self._outputs[job_id] = out_key
+        self._store.save(self.output_key(job_id), resp.content, "image/png")
         return ImageSubmissionResult(
-            provider=ProviderName.MOCK,  # (1) 임시 — (2)에서 LOCAL_SD
+            provider=ProviderName.LOCAL_SD,
             external_job_id=job_id,
-            estimated_cost_usd=Decimal("0.00"),
+            estimated_cost_usd=Decimal("0.00"),  # 로컬=요금 없음
         )
 
     async def get_status(self, external_job_id: str) -> ImageStatusResult:
-        out_key = self._outputs.get(external_job_id)
-        if out_key is None:
-            return ImageStatusResult(status=ProviderJobStatus.PROCESSING)
-        return ImageStatusResult(status=ProviderJobStatus.SUCCEEDED, output_url=out_key)
+        # 결과 바이트가 저장소에 있으면 완료 — 인스턴스 상태에 의존하지 않는다(멀티프로세스 안전).
+        out_key = self.output_key(external_job_id)
+        if self._store.exists(out_key):
+            return ImageStatusResult(status=ProviderJobStatus.SUCCEEDED, output_url=out_key)
+        return ImageStatusResult(status=ProviderJobStatus.PROCESSING)

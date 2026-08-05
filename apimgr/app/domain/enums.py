@@ -41,6 +41,7 @@ class ProviderName(str, Enum):
     FAL_WAN = "FAL_WAN"
     WAN_CLOUD_API = "WAN_CLOUD_API"  # 기획서 §12 별칭: ALIBABA_WAN
     SELF_HOSTED_WAN = "SELF_HOSTED_WAN"
+    LOCAL_SD = "LOCAL_SD"  # 로컬 자체호스팅 SD inpainting(이미지 전용) — §4.8 self-hosted
 
 
 class ProviderJobStatus(str, Enum):

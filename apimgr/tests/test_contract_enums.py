@@ -45,8 +45,10 @@ class TestContractEnums(unittest.TestCase):
         self.assertEqual(self._values(CreditTxType), self.data["CreditTxType"])
 
     def test_video_provider_subset(self):
-        # VideoProviderName = ProviderName - {GEMINI}
-        expected = [v for v in self.data["ProviderName"] if v != "GEMINI"]
+        # VideoProviderName = ProviderName - {이미지 전용 provider}. GEMINI(이미지 분석/생성),
+        # LOCAL_SD(로컬 이미지)는 영상 provider 가 아니다.
+        _IMAGE_ONLY = {"GEMINI", "LOCAL_SD"}
+        expected = [v for v in self.data["ProviderName"] if v not in _IMAGE_ONLY]
         # 순서는 계약 파일 기준으로 별도 정의됨
         self.assertEqual(set(self.data["VideoProviderName"]), set(expected))
 
