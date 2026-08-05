@@ -12,18 +12,29 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from app.api.deps import (
+    get_asset_service,
+    get_default_image_provider,
     get_default_video_provider,
     get_generation_service,
     get_optional_user,
 )
-from app.domain.enums import GenerationStatus, GenerationType
+from app.domain.enums import ErrorCode, GenerationStatus, GenerationType, ProviderJobStatus
+from app.domain.errors import DomainError
+from app.providers.image_generation.base import (
+    ImageGenerationInput,
+    ImageProvider,
+    ImageVariant,
+)
 from app.providers.video_generation.base import VideoGenerationInput
 from app.providers.video_generation.mock import MockScenario, MockVideoProvider
 from app.schemas.generation import (
     GenerationStatusResponse,
+    ImageGenerationRequest,
+    ImageGenerationResponse,
     VideoGenerationRequest,
     VideoGenerationResponse,
 )
+from app.services.asset_service import AssetService
 from app.services.generation_service import GenerationService
 from app.workers.generation_worker import GenerationWorker
 
@@ -84,6 +95,78 @@ async def create_video_generation(
     if gen.status is GenerationStatus.SUBMITTED and gen.generation_type is GenerationType.VIDEO:
         background.add_task(_advance_mock_generation, gen.id, service)
     return VideoGenerationResponse(generation_id=gen.id, status=gen.status)
+
+
+async def _run_image_generation(
+    generation_id: str,
+    input_data: ImageGenerationInput,
+    consultation_id: str,
+    gen_service: GenerationService,
+    asset_service: AssetService,
+    provider: ImageProvider,
+) -> None:
+    """이미지 생성 실작업(백그라운드) — provider 제출 → 결과 에셋 등록 → SUCCEEDED.
+
+    로컬 provider 는 submit 에서 추론+결과저장을 마치므로 get_status 가 즉시 SUCCEEDED 를 보고한다.
+    IMAGE 는 후처리(POST_PROCESSING) 없이 provider SUCCEEDED -> 내부 SUCCEEDED(§4.16).
+    """
+    gen = gen_service.get_generation(generation_id)
+    if gen is None:
+        return
+    try:
+        result = await provider.submit(input_data)
+    except DomainError as exc:
+        gen_service.fail_generation(gen, GenerationType.IMAGE, exc.error_code, str(exc))
+        return
+    gen = gen_service.mark_submitted(gen, result.provider, result.external_job_id, result.estimated_cost_usd)
+
+    status = await provider.get_status(result.external_job_id)
+    if status.status is ProviderJobStatus.SUCCEEDED and status.output_url:
+        asset = asset_service.register_generated_image(status.output_url, consultation_id)
+        gen_service.complete_generation(gen, GenerationType.IMAGE, output_asset_id=asset.id)
+    elif status.status is ProviderJobStatus.FAILED:
+        gen_service.fail_generation(
+            gen, GenerationType.IMAGE, status.error_code or ErrorCode.GENERATION_FAILED
+        )
+
+
+@router.post("/image-generations", status_code=202, response_model=ImageGenerationResponse)
+async def create_image_generation(
+    request: ImageGenerationRequest,
+    background: BackgroundTasks,
+    service: GenerationService = Depends(get_generation_service),
+    asset_service: AssetService = Depends(get_asset_service),
+    user_id: str | None = Depends(get_optional_user),
+) -> ImageGenerationResponse:
+    """이미지 헤어 리스타일 작업 등록(§6.1). 202 + generation_id, 실작업은 백그라운드."""
+    provider = get_default_image_provider()
+    input_data = ImageGenerationInput(
+        face_asset_id=request.face_asset_id,
+        style_reference_asset_id=request.style_reference_asset_id,
+        style_structure={},  # 스타일 분석 결과 연결은 로드맵
+        variant=ImageVariant(request.variant),
+        prompt=request.prompt,
+        idempotency_key=request.idempotency_key,
+        negative_prompt=request.negative_prompt,
+    )
+    gen = service.create_image_generation_record(
+        generation_id=str(uuid.uuid4()),
+        consultation_id=request.consultation_id,
+        input_data=input_data,
+        created_by=user_id,
+    )
+    # 새로 만든 작업만 실행(중복 idempotent 반환은 이미 진행/완료).
+    if gen.status is GenerationStatus.CREATED:
+        background.add_task(
+            _run_image_generation,
+            gen.id,
+            input_data,
+            request.consultation_id,
+            service,
+            asset_service,
+            provider,
+        )
+    return ImageGenerationResponse(generation_id=gen.id, status=gen.status)
 
 
 @router.get("/generations/{generation_id}", response_model=GenerationStatusResponse)

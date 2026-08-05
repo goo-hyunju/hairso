@@ -29,6 +29,25 @@ class VideoGenerationResponse(BaseModel):
     status: GenerationStatus
 
 
+class ImageGenerationRequest(BaseModel):
+    """이미지 헤어 리스타일 생성 요청(§6.1 얼굴 유지 + 머리만 변경)."""
+
+    consultation_id: str = Field(min_length=1)
+    face_asset_id: str = Field(min_length=1)  # 업로드로 확보한 FACE_SOURCE asset
+    prompt: str = Field(min_length=1)
+    negative_prompt: str | None = None
+    variant: Literal["SIMILAR", "FACE_ADJUSTED", "EASY_CARE"] = "SIMILAR"
+    style_reference_asset_id: str | None = None
+    idempotency_key: str = Field(min_length=1)
+
+
+class ImageGenerationResponse(BaseModel):
+    """202 Accepted — 이미지 생성 작업 등록 완료."""
+
+    generation_id: str
+    status: GenerationStatus
+
+
 class GenerationStatusResponse(BaseModel):
     """GET /api/v1/generations/{id} — image/video 공통."""
 

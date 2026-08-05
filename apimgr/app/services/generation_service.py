@@ -13,6 +13,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from app.domain import status_mapping
 from app.domain.enums import (
     ErrorCode,
@@ -24,6 +26,7 @@ from app.domain.enums import (
 from app.domain.errors import DomainError
 from app.domain.models import Generation
 from app.domain.state_machine import can_transition, is_terminal
+from app.providers.image_generation.base import ImageGenerationInput
 from app.providers.video_generation.base import VideoGenerationInput, VideoProvider
 from app.repositories.generation_repository import GenerationRepository
 
@@ -86,6 +89,51 @@ class GenerationService:
         gen.estimated_cost_usd = result.estimated_cost_usd
         gen.status = GenerationStatus.SUBMITTED
         self._repo.update(gen)  # 전체 영속(external_job_id·cost 포함)
+        return gen
+
+    def create_image_generation_record(
+        self,
+        generation_id: str,
+        consultation_id: str,
+        input_data: ImageGenerationInput,
+        created_by: str | None = None,
+    ) -> Generation:
+        """이미지 생성 CREATED 레코드 저장(빠름 — 무거운 provider 호출은 호출부 백그라운드에서).
+
+        idempotency: 동일 key 재요청은 기존 작업을 반환(중복 생성 안 함, §4.10).
+        """
+        existing = self._repo.get_by_idempotency_key(input_data.idempotency_key)
+        if existing is not None:
+            return existing
+        gen = Generation(
+            id=generation_id,
+            consultation_id=consultation_id,
+            generation_type=GenerationType.IMAGE,
+            provider=ProviderName.MOCK,  # submit 결과로 실제 provider 반영
+            status=GenerationStatus.CREATED,
+            idempotency_key=input_data.idempotency_key,
+            created_by=created_by,
+            input_asset_id=input_data.face_asset_id,
+            prompt=input_data.prompt,
+            negative_prompt=input_data.negative_prompt,
+        )
+        self._repo.save(gen)
+        return gen
+
+    def mark_submitted(
+        self,
+        gen: Generation,
+        provider: ProviderName,
+        external_job_id: str,
+        estimated_cost_usd: Decimal | None = None,
+    ) -> Generation:
+        """provider 제출 성공 반영 — provider/external_job_id/cost 저장 + SUBMITTED 전이(전체 영속)."""
+        gen.provider = provider
+        gen.external_job_id = external_job_id
+        gen.estimated_cost_usd = estimated_cost_usd
+        if can_transition(gen.generation_type, gen.status, GenerationStatus.SUBMITTED):
+            gen.status = GenerationStatus.SUBMITTED
+        self._repo.update(gen)
         return gen
 
     def apply_provider_status(
