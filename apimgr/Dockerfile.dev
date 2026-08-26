@@ -1,0 +1,19 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+
+WORKDIR /workspace/apimgr
+
+COPY apimgr/pyproject.toml apimgr/README.md ./
+COPY apimgr/app ./app
+COPY apimgr/tests ./tests
+COPY apimgr/main.py ./main.py
+
+RUN python -m pip install --upgrade pip \
+    && python -m pip install -e ".[dev]"
+
+EXPOSE 8000
+
+CMD ["python", "main.py"]

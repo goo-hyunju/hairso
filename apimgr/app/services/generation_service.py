@@ -70,7 +70,7 @@ class GenerationService:
             status=GenerationStatus.CREATED,
             idempotency_key=input_data.idempotency_key,
             created_by=created_by,  # 인증된 요청자(선택적 인증, 익명이면 None)
-            input_asset_id=input_data.image_asset_id,
+            input_asset_id=input_data.image_asset_id or None,
             prompt=input_data.prompt,
             negative_prompt=input_data.negative_prompt,
         )

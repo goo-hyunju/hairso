@@ -1,0 +1,14 @@
+FROM node:22-slim
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+WORKDIR /workspace/hairsoui
+
+COPY hairsoui/package.json hairsoui/package-lock.json ./
+RUN npm ci
+
+COPY hairsoui ./
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]

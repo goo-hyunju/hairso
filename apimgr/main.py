@@ -1,4 +1,4 @@
-﻿"""apimgr FastAPI 앱 진입점.
+"""apimgr FastAPI 앱 진입점.
 
 라우터를 등록한다. 무거운 작업은 Worker 로 분리(BackgroundTasks 단독 금지, §10).
 오류는 공통 envelope { "error": { "error_code", "message", "request_id" } } 로 변환한다
@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.v1 import assets, consultations, generations, health, style, webhooks
+from app.api.v1 import assets, consultations, generations, health, studio, style, webhooks
 from app.domain.enums import ErrorCode
 
 app = FastAPI(
@@ -72,6 +72,7 @@ app.include_router(consultations.router)
 app.include_router(style.router)
 app.include_router(assets.router)
 app.include_router(generations.router)
+app.include_router(studio.router)
 app.include_router(webhooks.router)
 
 

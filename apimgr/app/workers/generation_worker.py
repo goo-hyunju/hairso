@@ -16,12 +16,23 @@ from app.domain.enums import ErrorCode, GenerationStatus, GenerationType
 from app.domain.errors import DownloadFailed
 from app.domain.models import Generation
 from app.providers.video_generation.base import VideoProvider
+from app.services.asset_service import AssetService
 from app.services.generation_service import GenerationService
+
+_MOCK_VIDEO_BYTES = (
+    b"\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isomiso2mp41"
+    b"\x00\x00\x00\x08free\x00\x00\x00\x08mdat"
+)
 
 
 class GenerationWorker:
-    def __init__(self, service: GenerationService) -> None:
+    def __init__(
+        self,
+        service: GenerationService,
+        asset_service: AssetService | None = None,
+    ) -> None:
         self._service = service
+        self._asset_service = asset_service
 
     async def advance_once(self, gen: Generation, provider: VideoProvider) -> Generation:
         """작업을 1회 폴링해 내부 상태를 전진시킨다.
@@ -36,13 +47,34 @@ class GenerationWorker:
         # 후처리는 내부 POST_PROCESSING 도달 이후에만 판정한다(#7).
         if gen.status is GenerationStatus.POST_PROCESSING:
             # 유효한 결과 URL 이 있어야 성공 — 부재(None/빈문자열)·실패 마커는 다운로드 실패로 처리(#4).
-            if not status.output_url or status.output_url == "mock://download-fail":
+            if (
+                status.output_bytes is None
+                and (not status.output_url or status.output_url == "mock://download-fail")
+            ):
                 self._service.fail_generation(
                     gen, GenerationType.VIDEO, ErrorCode.DOWNLOAD_FAILED, str(DownloadFailed())
                 )
             else:
-                # 다운로드·R2·FFmpeg(로드맵) 성공 가정 -> SUCCEEDED(#8).
+                if status.output_bytes is None and not status.output_url.startswith("mock://"):
+                    self._service.fail_generation(
+                        gen,
+                        GenerationType.VIDEO,
+                        ErrorCode.DOWNLOAD_FAILED,
+                        str(DownloadFailed()),
+                    )
+                    return gen
+
+                # provider MP4 바이트 또는 Mock MP4 fixture 저장 -> SUCCEEDED(#8).
+                output_asset_id = "mock-output-asset"
+                if self._asset_service is not None:
+                    video_bytes = status.output_bytes or _MOCK_VIDEO_BYTES
+                    asset = self._asset_service.register_generated_video(
+                        video_bytes,
+                        owner_id=gen.created_by,
+                        consultation_id=gen.consultation_id,
+                    )
+                    output_asset_id = asset.id
                 self._service.complete_generation(
-                    gen, GenerationType.VIDEO, output_asset_id="mock-output-asset"
+                    gen, GenerationType.VIDEO, output_asset_id=output_asset_id
                 )
         return gen

@@ -14,6 +14,10 @@ from app.domain.enums import (
     GenerationType,
     ProviderJobStatus,
     ProviderName,
+    StudioCategory,
+    StudioProjectStatus,
+    StudioTemplateType,
+    StudioTone,
 )
 
 _CONTRACT = Path(__file__).resolve().parents[1] / "contract" / "enums.json"
@@ -43,6 +47,18 @@ class TestContractEnums(unittest.TestCase):
 
     def test_credit_tx_type(self):
         self.assertEqual(self._values(CreditTxType), self.data["CreditTxType"])
+
+    def test_studio_template_type(self):
+        self.assertEqual(self._values(StudioTemplateType), self.data["StudioTemplateType"])
+
+    def test_studio_category(self):
+        self.assertEqual(self._values(StudioCategory), self.data["StudioCategory"])
+
+    def test_studio_tone(self):
+        self.assertEqual(self._values(StudioTone), self.data["StudioTone"])
+
+    def test_studio_project_status(self):
+        self.assertEqual(self._values(StudioProjectStatus), self.data["StudioProjectStatus"])
 
     def test_video_provider_subset(self):
         # VideoProviderName = ProviderName - {이미지 전용 provider}. GEMINI(이미지 분석/생성),

@@ -8,6 +8,9 @@ from pydantic import BaseModel, Field
 
 from app.domain.enums import ErrorCode, GenerationStatus, GenerationType
 
+IDEMPOTENCY_KEY_PATTERN = r"^[A-Za-z0-9._-]+$"
+IDEMPOTENCY_KEY_MAX_LENGTH = 128
+
 
 class VideoGenerationRequest(BaseModel):
     # id 는 스캐폴드에서 opaque 문자열(UUID 형식 검증은 실 DB 계층 로드맵 — api-contract 참조).
@@ -19,7 +22,11 @@ class VideoGenerationRequest(BaseModel):
     aspect_ratio: Literal["9:16", "16:9", "1:1"] = "9:16"
     quality: Literal["480p", "720p", "1080p"] = "720p"
     seed: int | None = None
-    idempotency_key: str = Field(min_length=1)
+    idempotency_key: str = Field(
+        min_length=1,
+        max_length=IDEMPOTENCY_KEY_MAX_LENGTH,
+        pattern=IDEMPOTENCY_KEY_PATTERN,
+    )
 
 
 class VideoGenerationResponse(BaseModel):
@@ -38,7 +45,11 @@ class ImageGenerationRequest(BaseModel):
     negative_prompt: str | None = None
     variant: Literal["SIMILAR", "FACE_ADJUSTED", "EASY_CARE"] = "SIMILAR"
     style_reference_asset_id: str | None = None
-    idempotency_key: str = Field(min_length=1)
+    idempotency_key: str = Field(
+        min_length=1,
+        max_length=IDEMPOTENCY_KEY_MAX_LENGTH,
+        pattern=IDEMPOTENCY_KEY_PATTERN,
+    )
 
 
 class ImageGenerationResponse(BaseModel):

@@ -1,13 +1,25 @@
 """GenerationWorker 상태 전진·실패 처리 테스트 (결함2·3 회귀 방지)."""
 
 import unittest
+from tempfile import TemporaryDirectory
 
-from app.domain.enums import ErrorCode, GenerationStatus, GenerationType
-from app.providers.video_generation.base import VideoGenerationInput
+from app.domain.enums import ErrorCode, GenerationStatus, GenerationType, ProviderJobStatus
+from app.providers.storage.local_disk import LocalDiskAssetStore
+from app.providers.video_generation.base import (
+    VideoGenerationInput,
+    VideoStatusResult,
+)
 from app.providers.video_generation.mock import MockScenario, MockVideoProvider
+from app.repositories.asset_repository import InMemoryAssetRepository
 from app.repositories.generation_repository import InMemoryGenerationRepository
+from app.services.asset_service import AssetService
 from app.services.generation_service import GenerationService
 from app.workers.generation_worker import GenerationWorker
+
+_MP4_BYTES = (
+    b"\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isomiso2mp41"
+    b"\x00\x00\x00\x08free\x00\x00\x00\x08mdat"
+)
 
 
 def _input(key: str) -> VideoGenerationInput:
@@ -53,6 +65,46 @@ class TestGenerationWorker(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(gen.status, GenerationStatus.SUCCEEDED)
         self.assertEqual(gen.output_asset_id, "mock-output-asset")
         self.assertEqual(svc._repo.get(gen.id).status, GenerationStatus.SUCCEEDED)
+
+    async def test_provider_output_bytes_are_registered_as_generated_video_asset(self):
+        svc, _worker, gen = await self._submit(None)
+        gen.status = GenerationStatus.PROCESSING
+
+        class _BytesProvider(MockVideoProvider):
+            async def get_status(self, external_job_id: str):
+                return VideoStatusResult(
+                    status=ProviderJobStatus.SUCCEEDED,
+                    output_bytes=_MP4_BYTES,
+                )
+
+        with TemporaryDirectory() as tmp:
+            asset_service = AssetService(
+                LocalDiskAssetStore(tmp),
+                InMemoryAssetRepository(),
+                generated_video_prefix="studio/test-outputs",
+            )
+            worker = GenerationWorker(svc, asset_service)
+            gen = await worker.advance_once(gen, _BytesProvider(MockScenario.SUCCESS))
+            self.assertEqual(gen.status, GenerationStatus.SUCCEEDED)
+            self.assertIsNotNone(gen.output_asset_id)
+            stored = asset_service.get_bytes(gen.output_asset_id or "")
+            self.assertIsNotNone(stored)
+            self.assertEqual(stored[0], _MP4_BYTES)
+
+    async def test_non_mock_output_url_without_bytes_fails_download(self):
+        svc, worker, gen = await self._submit(None)
+        gen.status = GenerationStatus.PROCESSING
+
+        class _UrlOnlyProvider(MockVideoProvider):
+            async def get_status(self, external_job_id: str):
+                return VideoStatusResult(
+                    status=ProviderJobStatus.SUCCEEDED,
+                    output_url="https://provider.example/private/result.mp4",
+                )
+
+        gen = await worker.advance_once(gen, _UrlOnlyProvider(MockScenario.SUCCESS))
+        self.assertEqual(gen.status, GenerationStatus.FAILED)
+        self.assertEqual(gen.error_code, ErrorCode.DOWNLOAD_FAILED)
 
     async def test_missing_output_url_fails(self):
         # 결함#4 회귀: POST_PROCESSING 에서 결과 URL 부재는 성공이 아니라 다운로드 실패.

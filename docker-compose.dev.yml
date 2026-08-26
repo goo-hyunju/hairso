@@ -1,0 +1,65 @@
+services:
+  apimgr:
+    build:
+      context: .
+      dockerfile: apimgr/Dockerfile.dev
+    command: python main.py
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: "8000"
+      APP_RELOAD: "1"
+      ASSET_STORE_BACKEND: LOCAL_DISK
+      ASSET_LOCAL_ROOT: /var/lib/hairso/assets
+      STUDIO_STORAGE_PROFILE_NAME: local-dev
+      STUDIO_OUTPUT_PREFIX: studio/outputs
+      STUDIO_OUTPUT_RETENTION_DAYS: "30"
+      DEFAULT_VIDEO_PROVIDER: MOCK
+      LOCAL_VIDEO_INFERENCE_URL: http://host.docker.internal:8188
+      LOCAL_VIDEO_ENDPOINT_PATH: /video/i2v
+      LOCAL_VIDEO_TIMEOUT_SECONDS: "900"
+      SELF_HOSTED_WAN_VIDEO_MODEL: ""
+      DEFAULT_IMAGE_PROVIDER: MOCK
+      DEFAULT_ANALYSIS_PROVIDER: MOCK
+      DEFAULT_STUDIO_DRAFT_PROVIDER: MOCK
+      MOCK_ADVANCE_INTERVAL_SEC: "1.0"
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read()",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - ./apimgr:/workspace/apimgr
+      - hairso_asset_data:/var/lib/hairso/assets
+
+  hairsoui:
+    build:
+      context: .
+      dockerfile: hairsoui/Dockerfile.dev
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000
+    depends_on:
+      apimgr:
+        condition: service_healthy
+    environment:
+      API_PROXY_TARGET: http://apimgr:8000
+      NEXT_PUBLIC_API_BASE_URL: ""
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./hairsoui:/workspace/hairsoui
+      - hairsoui_node_modules:/workspace/hairsoui/node_modules
+      - hairsoui_next:/workspace/hairsoui/.next
+
+volumes:
+  hairso_asset_data:
+  hairsoui_node_modules:
+  hairsoui_next:

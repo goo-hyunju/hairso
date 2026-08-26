@@ -1,4 +1,4 @@
-﻿[project]
+[project]
 name = "apimgr"
 version = "0.1.0"
 description = "HairView AI backend (FastAPI) — 스캐폴드"

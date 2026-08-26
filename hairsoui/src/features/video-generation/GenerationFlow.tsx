@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createVideoGeneration, getGenerationStatus } from "@/lib/api/generations";
-import { generationStatusView, type StatusTone } from "@/features/video-generation/generationStatusView";
 import { ApiError, messageForErrorCode } from "@/lib/api/errors";
 import type { GenerationStatus } from "@/types/generation";
 import { AspectRatioMedia } from "@/components/AspectRatioMedia";
 import { Button } from "@/components/Button";
+import { StatusBadge } from "@/components/StatusBadge";
 
 /**
  * 상담→생성 데모 화면(카메라 없이 동작). Mock 백엔드에 실제로 붙는다:
@@ -21,14 +21,16 @@ const TERMINAL: ReadonlySet<GenerationStatus> = new Set<GenerationStatus>([
   "EXPIRED",
 ]);
 
-const toneClass: Record<StatusTone, string> = {
-  neutral: "bg-gray-100 text-gray-700",
-  progress: "bg-rose-50 text-rose-700",
-  success: "bg-emerald-50 text-emerald-700",
-  error: "bg-red-50 text-red-700",
-};
-
 type Phase = "idle" | "running" | "done" | "error";
+
+function isAbortError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "name" in err &&
+    (err as { name: unknown }).name === "AbortError"
+  );
+}
 
 export function GenerationFlow() {
   const [prompt, setPrompt] = useState(
@@ -74,6 +76,7 @@ export function GenerationFlow() {
         timer.current = setTimeout(tick, 1200);
       } catch (err) {
         if (!mounted.current) return;
+        if (isAbortError(err)) return;
         const code = err instanceof ApiError ? err.code : "UNKNOWN";
         setErrorMsg(messageForErrorCode(code));
         setPhase("error");
@@ -104,19 +107,19 @@ export function GenerationFlow() {
       poll(res.generation_id);
     } catch (err) {
       if (!mounted.current) return;
+      if (isAbortError(err)) return;
       const code = err instanceof ApiError ? err.code : "UNKNOWN";
       setErrorMsg(messageForErrorCode(code));
       setPhase("error");
     }
   }, [prompt, poll, cleanup]);
 
-  const view = status ? generationStatusView[status] : null;
   const busy = phase === "running";
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <label htmlFor="prompt" className="text-sm font-medium text-gray-700">
+        <label htmlFor="prompt" className="studio-label">
           어떤 움직임의 영상으로 만들까요?
         </label>
         <textarea
@@ -125,7 +128,7 @@ export function GenerationFlow() {
           onChange={(e) => setPrompt(e.target.value)}
           rows={3}
           disabled={busy}
-          className="w-full resize-none rounded-xl border border-gray-300 p-3 text-base outline-none focus:border-rose-400 disabled:opacity-60"
+          className="studio-input min-h-[108px] resize-none p-3 text-base disabled:opacity-60"
         />
       </div>
 
@@ -133,24 +136,13 @@ export function GenerationFlow() {
         {busy ? "생성 중…" : phase === "done" || phase === "error" ? "다시 생성" : "영상 생성"}
       </Button>
 
-      {view && (
-        <div
-          className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium ${toneClass[view.tone]}`}
-          role="status"
-          aria-live="polite"
-        >
-          <span>{view.label}</span>
-          {busy && (
-            <span
-              className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
-              aria-hidden="true"
-            />
-          )}
-        </div>
-      )}
+      {status && <StatusBadge status={status} showSpinner={busy} className="self-start" />}
 
       {errorMsg && (
-        <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+        <p
+          className="rounded-lg bg-[var(--ui-status-error-bg)] px-4 py-3 text-sm text-[var(--ui-status-error-text)]"
+          role="alert"
+        >
           {errorMsg}
         </p>
       )}
@@ -158,20 +150,22 @@ export function GenerationFlow() {
       {phase === "done" && (
         <div className="flex flex-col gap-2">
           <AspectRatioMedia className="mx-auto max-w-[220px]">
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-rose-100 to-rose-50 text-center text-sm text-rose-700">
+            <div className="flex h-full w-full items-center justify-center bg-[var(--ui-action-accent-soft)] text-center text-sm text-[var(--ui-action-accent)]">
               완료된 5초 영상 자리
               <br />
               (실 영상 생성은 로드맵)
             </div>
           </AspectRatioMedia>
-          <p className="text-center text-xs text-gray-500">
+          <p className="text-center text-xs text-[var(--ui-content-muted)]">
             AI 예상 결과입니다. 실제 시술 결과는 모질·두상 등에 따라 달라질 수 있어요.
           </p>
         </div>
       )}
 
       {genId && (
-        <p className="text-center font-mono text-[11px] text-gray-400">generation_id: {genId}</p>
+        <p className="text-center font-mono text-[11px] text-[var(--ui-content-muted)]">
+          generation_id: {genId}
+        </p>
       )}
     </div>
   );

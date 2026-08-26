@@ -10,13 +10,13 @@ npm run dev        # http://localhost:3000
 
 ## 검증 (설치 시점 실측)
 - `npm run typecheck` — exit 0 (strict + noUncheckedIndexedAccess)
-- `npm run test` — **12 passed** (parity·mapper·validation)
+- `npm run test` — parity·mapper·validation·studio schema
 - `npm run build` — exit 0 (Next.js 15.5.20, static / 생성)
 - `npm run lint` — exit 0 (no-explicit-any: error)
 - 설치 버전: next 15.5.20 · react 19.2.7 · zod 4.4.3 · tailwind 4.3.2
 
 ## 환경변수
-`NEXT_PUBLIC_API_BASE_URL` — apimgr(BE) base URL. **미확정**(BE 포트/CORS 확정 후 주입).
+`NEXT_PUBLIC_API_BASE_URL` — dev 기본은 빈 값. Next rewrite가 `/api/*`를 apimgr `127.0.0.1:8000`으로 프록시한다. 운영 게이트웨이가 확정되면 별도 주입한다.
 
 ## 구조
 `src/{app,types,lib/api,lib/validation,features,components,__tests__}` + `contract/enums.json`.

@@ -14,6 +14,16 @@ def _get(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
 
+def _get_int(name: str, default: int) -> int:
+    value = os.environ.get(name)
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 @dataclass(frozen=True)
 class Settings:
     """런타임 설정. 비밀값은 로그로 출력하지 않는다(규칙 §0.14)."""
@@ -41,9 +51,29 @@ class Settings:
     default_video_provider: str = field(default_factory=lambda: _get("DEFAULT_VIDEO_PROVIDER", "MOCK"))
     default_image_provider: str = field(default_factory=lambda: _get("DEFAULT_IMAGE_PROVIDER", "MOCK"))
     default_analysis_provider: str = field(default_factory=lambda: _get("DEFAULT_ANALYSIS_PROVIDER", "MOCK"))
+    default_studio_draft_provider: str = field(
+        default_factory=lambda: _get("DEFAULT_STUDIO_DRAFT_PROVIDER", "MOCK")
+    )
 
     # 로컬 이미지 생성(LOCAL Provider) — 별도 추론 서비스(ml/serve.py) URL.
     local_inference_url: str = field(default_factory=lambda: _get("LOCAL_INFERENCE_URL", "http://127.0.0.1:8188"))
+    # 로컬 영상 생성(SELF_HOSTED_WAN Provider) — 별도 추론 서비스(ml/serve.py 또는 호환 서버) URL.
+    local_video_inference_url: str = field(
+        default_factory=lambda: _get("LOCAL_VIDEO_INFERENCE_URL", "http://127.0.0.1:8188")
+    )
+    local_video_endpoint_path: str = field(
+        default_factory=lambda: _get("LOCAL_VIDEO_ENDPOINT_PATH", "/video/i2v")
+    )
+    local_video_timeout_seconds: int = field(
+        default_factory=lambda: _get_int("LOCAL_VIDEO_TIMEOUT_SECONDS", 900)
+    )
+    self_hosted_wan_video_model: str = field(
+        default_factory=lambda: _get("SELF_HOSTED_WAN_VIDEO_MODEL")
+    )
+    # 로컬 텍스트 초안 생성(Ollama). 모델명은 env 로만 주입하고, 기본값은 Mock fallback.
+    ollama_base_url: str = field(default_factory=lambda: _get("OLLAMA_BASE_URL", "http://127.0.0.1:11434"))
+    ollama_studio_draft_model: str = field(default_factory=lambda: _get("OLLAMA_STUDIO_DRAFT_MODEL"))
+    ollama_timeout_seconds: int = field(default_factory=lambda: _get_int("OLLAMA_TIMEOUT_SECONDS", 60))
 
     # 에셋 저장소 — LOCAL_DISK(기본, 자격증명 불필요) 또는 SUPABASE(service_role/secret 키 필요).
     # 로컬 디스크 루트: 고객 얼굴/결과가 저장되므로 저장소 밖 경로 사용(§4.13 — repo 밖).
@@ -59,6 +89,18 @@ class Settings:
     pixverse_video_model: str = field(default_factory=lambda: _get("PIXVERSE_VIDEO_MODEL"))
     fal_wan_video_model: str = field(default_factory=lambda: _get("FAL_WAN_VIDEO_MODEL"))
     gemini_image_model: str = field(default_factory=lambda: _get("GEMINI_IMAGE_MODEL"))
+
+    # Studio 저장 설정(비밀 아님). 실제 바이트 저장 위치는 AssetStore 설정이 결정하고,
+    # Studio 는 어떤 profile/prefix/retention 정책으로 결과를 보관할지만 기록한다.
+    studio_storage_profile_name: str = field(
+        default_factory=lambda: _get("STUDIO_STORAGE_PROFILE_NAME", "local-dev")
+    )
+    studio_output_prefix: str = field(
+        default_factory=lambda: _get("STUDIO_OUTPUT_PREFIX", "studio/outputs")
+    )
+    studio_output_retention_days: int = field(
+        default_factory=lambda: _get_int("STUDIO_OUTPUT_RETENTION_DAYS", 30)
+    )
 
 
 def get_settings() -> Settings:

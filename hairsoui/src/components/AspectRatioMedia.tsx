@@ -12,7 +12,7 @@ export interface AspectRatioMediaProps {
 
 export function AspectRatioMedia({ children, className = "" }: AspectRatioMediaProps) {
   return (
-    <div className={`relative aspect-[9/16] w-full overflow-hidden rounded-xl bg-gray-100 ${className}`}>
+    <div className={`relative aspect-[9/16] w-full overflow-hidden rounded-lg bg-[var(--ui-surface-muted)] ${className}`}>
       {children}
     </div>
   );

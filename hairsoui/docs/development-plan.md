@@ -4,10 +4,10 @@
 
 ## 이번 스캐폴드 `[구현·검증완료]`
 - Next.js 15 App Router · TS strict · Tailwind v4 · Zod 설정 + 반응형 layout/landing.
-- 타입/Zod 계약(`lib/api/schemas.ts`), 공통 API 클라이언트(`client.ts`), generations 함수.
+- 타입/Zod 계약(`lib/api/schemas.ts`), 공통 API 클라이언트(`client.ts`), generations/assets 함수.
 - 상태 Mapper(10키), 오류코드→메시지(18키), 클라 이미지 검증 순수함수.
 - 공통 컴포넌트 Button(터치 타깃)·AspectRatioMedia(9:16), `contract/enums.json`, parity/mapper/validation 테스트(12).
-- 검증: typecheck 0 · test 12 · build 0 · lint 0.
+- 검증: typecheck 0 · test 20 · lint 0.
 
 ## 로드맵 `[미구현-로드맵]`
 - **2주차:** 브라우저 카메라 상태머신·실 스트림(getUserMedia)·track 정리, MediaPipe 품질검사, 촬영 가이드. (실기기 검증 필요 — §8.1)

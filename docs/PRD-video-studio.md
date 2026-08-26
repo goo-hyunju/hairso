@@ -40,11 +40,20 @@ The repository already has a lower-level mock generation scaffold:
 - FE can call `POST /api/v1/video-generations` and poll `GET /api/v1/generations/{id}` from `hairsoui/src/features/video-generation/GenerationFlow.tsx`.
 - BE owns provider submission, status mapping, idempotency, and cost fields through the generation service and provider abstractions.
 - The current status contract has 10 values: `CREATED`, `UPLOADING`, `SUBMITTED`, `QUEUED`, `PROCESSING`, `POST_PROCESSING`, `SUCCEEDED`, `FAILED`, `CANCELED`, `EXPIRED`.
-- Mock providers are the default local path. Real PixVerse, Wan, fal, Gemini, FFmpeg/R2 post-processing, credits, auth, QR/share, and real uploads remain roadmap unless separately implemented.
+- Mock providers are the default local path. A backend-only `SELF_HOSTED_WAN` opt-in path can store MP4 bytes returned by a local `/video/i2v` compatible server. Real PixVerse, Wan Cloud, fal, Gemini, FFmpeg/R2 post-processing, credits, auth, QR/share, large model downloads, GPU execution, and real uploads remain roadmap unless separately implemented.
+- Studio draft generation may use a backend-only local Ollama provider for script/storyboard JSON, but the default local path remains Mock and must not call paid external providers.
 
 This PRD describes the Studio product layer to build on top of that scaffold. It is not permission to rename working FE/BE modules or replace the current generation API in one step.
 
 ## Initial Templates
+
+### Promotion Short
+
+For short category-based promotional reels with offer, price, duration, and CTA.
+
+### Event Promotion
+
+For local business or salon event reels with a time-bound benefit and booking CTA.
 
 ### Before/After
 
@@ -124,6 +133,7 @@ The first Studio layer should be thin and compatible with the current scaffold:
 
 - Create or select a Studio project with template, input text, duration, CTA, and uploaded asset IDs.
 - Draft script and storyboard in a deterministic mock path first.
+- Optionally draft script and storyboard through a backend-only local Ollama provider, falling back to Mock if unavailable.
 - Persist edited script/storyboard before generation.
 - Start a render/generation job with an idempotency key.
 - Poll job state through the existing generation status contract where possible.
@@ -182,13 +192,17 @@ This milestone proves the workflow before adding real paid providers.
 
 ### Acceptance Criteria
 
-- The current `/try` mock generation flow keeps working.
-- One template, preferably Event Promotion or Before/After, can run from input to result without paid provider calls.
+- The current `/try` mock generation route may remain only as an internal regression path, but it is not a product entry point.
+- The first happy path template is **Promotion Short** with Hair as the default category, and can run from input to result without paid provider calls.
+- **Event Promotion** is selectable and uses the same project, draft, render, and result contract.
 - Script and storyboard are visible and editable before generation starts.
 - Repeated generate clicks or page refreshes do not create duplicate paid jobs; idempotency keys are used intentionally.
+- Studio asset references reject URL/path/Base64-shaped inputs and unknown or inaccessible assets.
 - FE never sends provider credentials or calls external AI providers directly.
 - BE logs use IDs such as `asset_id`, `generation_id`, and `project_id`, not image URLs, signed URLs, Base64 payloads, or secrets.
 - Result state reaches a clear terminal state: success with preview/result reference, or failure with safe user-facing error messaging.
+- Mock result references are not presented as production-quality generated videos. `SELF_HOSTED_WAN` local results may be stored as MP4 assets when a local renderer is explicitly configured, but preview, download, and QR remain product placeholders until the share/render contract is hardened.
+- Local Ollama draft generation, when enabled, must only receive project text and asset counts, not customer media URLs, signed URLs, storage keys, Base64, or raw provider payloads.
 - The implementation can be verified locally with mock providers and without running DB migrations.
 
 ## Near-Term Sequence
@@ -204,6 +218,14 @@ This milestone proves the workflow before adding real paid providers.
 
 - Exact persistence shape for `ContentProject`, `Script`, `Scene`, and `RenderOutput`.
 - Whether Studio phases need a separate public status contract or can stay internal metadata.
-- Whether the first template should be Event Promotion or Before/After.
 - How QR/share should expire and authorize access when implemented.
 - How final 15s/30s composed output maps to short provider-generated scene clips.
+
+## Filled Planning Decisions
+
+- First templates: **Promotion Short** and **Event Promotion**.
+- First category set: Hair, Beauty, Health, Product, Local Business. Hair is not the whole product center.
+- First implementation mode: **Mock-first**, with optional backend-only local Ollama draft generation, no paid provider calls, and no DB migration.
+- First render target: **9:16 vertical preview placeholder** backed by the existing generation status contract.
+- First asset policy: accept uploaded/selected asset IDs, but do not expose signed URLs or raw storage keys.
+- First Docker scope: development compose only. Production image, DB container, GPU/ML service, migration execution, and deployment are separate decisions.

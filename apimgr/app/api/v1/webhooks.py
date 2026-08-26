@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.api.deps import get_webhook_service
@@ -28,12 +30,14 @@ async def pixverse_webhook(
     """[스텁] PixVerse webhook. 서명 검증 후 상태 반영. 실 payload 스키마는 로드맵."""
     payload = await request.body()
     settings = get_settings()
+    if not settings.pixverse_webhook_secret:
+        raise HTTPException(status_code=500, detail="INTERNAL_ERROR")
     # 실제 파싱은 로드맵 — 스캐폴드는 헤더 기반 최소 흐름만.
     external_job_id = request.query_params.get("job_id", "")
-    now_ts = x_timestamp  # 스캐폴드: 실제로는 서버 시각 사용
+    now_ts = int(time.time())
     try:
         status = service.handle_status_event(
-            secret=settings.pixverse_webhook_secret or "unset-secret",
+            secret=settings.pixverse_webhook_secret,
             payload=payload,
             signature=x_signature,
             event_ts=x_timestamp,

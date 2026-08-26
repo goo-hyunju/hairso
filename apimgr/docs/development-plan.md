@@ -4,11 +4,11 @@
 
 ## 이번 스캐폴드 `[구현·검증완료]`
 - 계층 골격(api/core/domain/schemas/services/providers/repositories/workers).
-- 도메인: GenerationStatus(10)·ErrorCode(18)·ProviderName(6)·CreditTxType enum, 타입별 상태 전이표, ProviderJobStatus 매핑.
-- Mock Provider 3종(image_analysis / image_generation / video_generation) — 8시나리오.
+- 도메인: GenerationStatus(10)·ErrorCode(18)·ProviderName(7)·CreditTxType enum, 타입별 상태 전이표, ProviderJobStatus 매핑.
+- Mock Provider 4종(image_analysis / image_generation / video_generation / studio_draft) — video 8시나리오.
 - in-memory Repository + idempotency 근사, GenerationService, WebhookService(서명검증·중복안전).
 - FastAPI 라우터(health/consultations/style/video-generations/generations/webhooks), 202 비동기.
-- 참고 DDL(`db/schema.sql`), `contract/enums.json`, pytest 44 + TestClient 스모크.
+- 참고 DDL(`db/schema.sql`), `contract/enums.json`, Studio Mock API, backend-only local Ollama draft provider 옵션, SELF_HOSTED_WAN 로컬 MP4 provider opt-in, pytest 84 + unittest 89 + TestClient 스모크.
 
 ## 로드맵 `[미구현-로드맵]`
 - **2주차:** Gemini 실 분석 연동(스타일 JSON), 사진 품질 서버 재검증(§4.14).

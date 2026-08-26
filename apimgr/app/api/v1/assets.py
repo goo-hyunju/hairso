@@ -41,9 +41,13 @@ async def upload_asset(
 async def get_asset_content(
     asset_id: str,
     asset_service: AssetService = Depends(get_asset_service),
+    user_id: str | None = Depends(get_optional_user),
 ) -> Response:
     """에셋 바이트 다운로드(비공개 저장 → 이 API 경유). 없으면 404."""
-    result = asset_service.get_bytes(asset_id)
+    try:
+        result = asset_service.get_bytes_for_user(asset_id, user_id)
+    except DomainError as exc:
+        raise HTTPException(status_code=403, detail=exc.error_code.value) from exc
     if result is None:
         raise HTTPException(status_code=404, detail="NOT_FOUND")
     data, mime = result

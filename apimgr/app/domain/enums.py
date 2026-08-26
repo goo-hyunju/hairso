@@ -30,7 +30,7 @@ class GenerationType(str, Enum):
 
 
 class ProviderName(str, Enum):
-    """AI Provider 레지스트리(6개). 규칙 §4.8: WAN_CLOUD_API 채택(기획서 ALIBABA_WAN 은 별칭).
+    """AI Provider 레지스트리(7개). 규칙 §4.8: WAN_CLOUD_API 채택(기획서 ALIBABA_WAN 은 별칭).
 
     GEMINI 는 image_analysis/image_generation 소속 — 영상 provider 가 아니다(FE VideoProviderName 에서 제외).
     """
@@ -79,6 +79,42 @@ class ErrorCode(str, Enum):
     DOWNLOAD_FAILED = "DOWNLOAD_FAILED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
     UNKNOWN = "UNKNOWN"
+
+
+class StudioTemplateType(str, Enum):
+    """Studio 공개 템플릿 타입. 제품 중심은 범용 쇼츠이고 Hair 는 카테고리 중 하나다."""
+
+    PROMOTION_SHORT = "PROMOTION_SHORT"
+    SALON_EVENT_PROMOTION = "SALON_EVENT_PROMOTION"
+
+
+class StudioCategory(str, Enum):
+    """Studio 콘텐츠 카테고리. Hair 는 기본 카테고리일 뿐 제품 전체 중심은 아니다."""
+
+    HAIR = "HAIR"
+    BEAUTY = "BEAUTY"
+    HEALTH = "HEALTH"
+    PRODUCT = "PRODUCT"
+    LOCAL_BUSINESS = "LOCAL_BUSINESS"
+
+
+class StudioTone(str, Enum):
+    """Studio 초안 문구 톤. FE 선택값과 동일 리터럴."""
+
+    CALM = "CALM"
+    TRENDY = "TRENDY"
+    PREMIUM = "PREMIUM"
+    FRIENDLY = "FRIENDLY"
+
+
+class StudioProjectStatus(str, Enum):
+    """Studio 프로젝트 상태. 생성 job 상태와 분리된 제품 레이어 상태."""
+
+    DRAFTING = "DRAFTING"
+    DRAFT_READY = "DRAFT_READY"
+    RENDERING = "RENDERING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
 
 
 class CreditTxType(str, Enum):

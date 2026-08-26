@@ -10,6 +10,7 @@ provider 이름은 `LOCAL_SD`(§4.8 self-hosted, DB check 제약·FE/BE 계약 p
 from __future__ import annotations
 
 from decimal import Decimal
+from urllib.parse import urlparse
 
 import httpx
 
@@ -22,6 +23,8 @@ from app.providers.image_generation.base import (
     ImageSubmissionResult,
 )
 from app.providers.storage.base import AssetStore
+
+_LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1", "host.docker.internal", "ml"}
 
 
 class LocalImageProvider(ImageProvider):
@@ -36,6 +39,15 @@ class LocalImageProvider(ImageProvider):
         self._base_url = base_url.rstrip("/")
         self._steps = steps
         self._timeout = timeout_s
+        self._assert_local_url()
+
+    def _assert_local_url(self) -> None:
+        parsed = urlparse(self._base_url)
+        if parsed.scheme not in {"http", "https"}:
+            raise GenerationFailed("local image provider URL must be http(s)")
+        host = parsed.hostname or ""
+        if host not in _LOCAL_HOSTS:
+            raise GenerationFailed("local image provider must use a local host")
 
     @staticmethod
     def face_key(face_asset_id: str) -> str:

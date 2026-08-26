@@ -4,5 +4,7 @@
 /build
 *.tsbuildinfo
 next-env.d.ts.timestamp
-.env*.local
+.env
+.env.*
+!.env.example
 .DS_Store

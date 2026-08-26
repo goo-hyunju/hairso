@@ -29,17 +29,18 @@ function isApiErrorCode(value: unknown): value is ApiErrorCode {
   return typeof value === "string" && (API_ERROR_CODES as readonly string[]).includes(value);
 }
 
-export interface RequestOptions<T> {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
-  body?: unknown;
-  schema: z.ZodType<T>;
-  signal?: AbortSignal;
+function isAbortError(value: unknown): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "name" in value &&
+    (value as { name: unknown }).name === "AbortError"
+  );
 }
 
-export async function apiRequest<T>(path: string, options: RequestOptions<T>): Promise<T> {
-  const { method = "GET", body, schema, signal } = options;
-
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+async function getHeaders(hasJsonBody: boolean): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  if (hasJsonBody) headers["Content-Type"] = "application/json";
   if (authTokenProvider) {
     try {
       const token = await authTokenProvider();
@@ -48,20 +49,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions<T>): P
       // 토큰 획득 실패는 익명으로 진행(선택적 인증) — 요청 자체를 막지 않는다.
     }
   }
+  return headers;
+}
 
-  let res: Response;
-  try {
-    res = await fetch(`${BASE_URL}${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal,
-    });
-  } catch {
-    // 네트워크 오류 — Provider 원문 없이 코드만.
-    throw new ApiError("UNKNOWN", 0);
-  }
-
+async function parseResponse<T>(res: Response, schema: z.ZodType<T>): Promise<T> {
   const headerRequestId = res.headers.get("x-request-id") ?? undefined;
 
   if (!res.ok) {
@@ -94,4 +85,60 @@ export async function apiRequest<T>(path: string, options: RequestOptions<T>): P
   }
   // 타입 단언이 아니라 런타임 검증(§3.5).
   return schema.parse(json);
+}
+
+export interface RequestOptions<T> {
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  body?: unknown;
+  schema: z.ZodType<T>;
+  signal?: AbortSignal;
+}
+
+export async function apiRequest<T>(path: string, options: RequestOptions<T>): Promise<T> {
+  const { method = "GET", body, schema, signal } = options;
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: await getHeaders(body !== undefined),
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
+    });
+  } catch (err) {
+    if (isAbortError(err)) throw err;
+    // 네트워크 오류 — Provider 원문 없이 코드만.
+    throw new ApiError("UNKNOWN", 0);
+  }
+
+  return parseResponse(res, schema);
+}
+
+export interface FormRequestOptions<T> {
+  method?: "POST" | "PATCH";
+  formData: FormData;
+  schema: z.ZodType<T>;
+  signal?: AbortSignal;
+}
+
+export async function apiFormRequest<T>(
+  path: string,
+  options: FormRequestOptions<T>,
+): Promise<T> {
+  const { method = "POST", formData, schema, signal } = options;
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: await getHeaders(false),
+      body: formData,
+      signal,
+    });
+  } catch (err) {
+    if (isAbortError(err)) throw err;
+    throw new ApiError("UNKNOWN", 0);
+  }
+
+  return parseResponse(res, schema);
 }

@@ -1,4 +1,4 @@
-﻿"""의존성 주입(DI) — Service·Provider·Repository 를 라우터에 주입한다.
+"""의존성 주입(DI) — Service·Provider·Repository 를 라우터에 주입한다.
 
 Repository: DATABASE_URL 설정 시 Supabase(psycopg), 없으면 InMemory(스캐폴드/테스트).
 기본 Provider 는 Mock(규칙 §0.16).
@@ -15,15 +15,21 @@ from app.api.auth import SupabaseJWTVerifier
 from app.core.config import get_settings
 from app.providers.image_generation.base import ImageProvider
 from app.providers.storage.base import AssetStore
+from app.providers.studio_draft.base import StudioDraftProvider, StudioDraftProviderError
+from app.providers.studio_draft.mock import MockStudioDraftProvider
+from app.providers.studio_draft.ollama import OllamaStudioDraftProvider
 from app.providers.storage.local_disk import LocalDiskAssetStore
+from app.providers.video_generation.base import VideoProvider
 from app.providers.video_generation.mock import MockScenario, MockVideoProvider
 from app.repositories.asset_repository import AssetRepository, InMemoryAssetRepository
 from app.repositories.generation_repository import (
     GenerationRepository,
     InMemoryGenerationRepository,
 )
+from app.repositories.studio_repository import InMemoryStudioRepository, StudioRepository
 from app.services.asset_service import AssetService
 from app.services.generation_service import GenerationService
+from app.services.studio_service import StudioService
 from app.services.webhook_service import WebhookService
 
 # ASSET_LOCAL_ROOT 미설정 시 기본: 저장소(repo) 밖 rengoo/models(§4.13 — 고객 얼굴/결과 repo 밖).
@@ -55,9 +61,26 @@ def get_webhook_service() -> WebhookService:
     return WebhookService(get_generation_service())
 
 
-def get_default_video_provider() -> MockVideoProvider:
-    # 기본은 Mock. 실 Provider(PixVerse/fal)는 config.default_video_provider 로 로드맵 전환.
-    return MockVideoProvider(MockScenario.SUCCESS)
+def get_default_video_provider() -> VideoProvider:
+    """기본 영상 Provider.
+
+    MOCK 은 테스트/개발 기본값이다. SELF_HOSTED_WAN 은 명시 opt-in 로컬 추론 서버만 호출한다.
+    아직 구현하지 않은 원격 provider 를 설정하면 조용한 Mock fallback 대신 fail-closed 한다.
+    """
+    s = get_settings()
+    provider = s.default_video_provider.upper()
+    if provider == "MOCK":
+        return MockVideoProvider(MockScenario.SUCCESS)
+    if provider == "SELF_HOSTED_WAN":
+        from app.providers.video_generation.self_hosted_wan import SelfHostedWanVideoProvider
+
+        return SelfHostedWanVideoProvider(
+            s.local_video_inference_url,
+            model=s.self_hosted_wan_video_model,
+            endpoint_path=s.local_video_endpoint_path,
+            timeout_s=float(s.local_video_timeout_seconds),
+        )
+    raise RuntimeError(f"DEFAULT_VIDEO_PROVIDER={provider} is not implemented")
 
 
 @lru_cache(maxsize=1)
@@ -86,7 +109,54 @@ def get_asset_repository() -> AssetRepository:
 
 @lru_cache(maxsize=1)
 def get_asset_service() -> AssetService:
-    return AssetService(get_asset_store(), get_asset_repository())
+    s = get_settings()
+    return AssetService(
+        get_asset_store(),
+        get_asset_repository(),
+        generated_video_prefix=s.studio_output_prefix,
+        generated_video_expiry_days=s.studio_output_retention_days,
+    )
+
+
+@lru_cache(maxsize=1)
+def get_studio_repository() -> StudioRepository:
+    s = get_settings()
+    if s.database_url:
+        from app.repositories.supabase_studio_repository import SupabaseStudioRepository
+
+        return SupabaseStudioRepository(s.database_url)
+    return InMemoryStudioRepository()
+
+
+@lru_cache(maxsize=1)
+def get_studio_draft_provider() -> StudioDraftProvider:
+    """Studio script/storyboard 초안 provider.
+
+    기본은 Mock 이다. OLLAMA 는 로컬 서버와 모델이 준비된 경우에만 사용하고,
+    설정 오류는 local dev 흐름을 깨지 않도록 Mock 으로 되돌린다.
+    """
+    s = get_settings()
+    if s.default_studio_draft_provider.upper() == "OLLAMA":
+        try:
+            return OllamaStudioDraftProvider(
+                s.ollama_base_url,
+                s.ollama_studio_draft_model,
+                float(s.ollama_timeout_seconds),
+            )
+        except StudioDraftProviderError:
+            return MockStudioDraftProvider()
+    return MockStudioDraftProvider()
+
+
+@lru_cache(maxsize=1)
+def get_studio_service() -> StudioService:
+    return StudioService(
+        get_studio_repository(),
+        get_generation_service(),
+        get_asset_service(),
+        get_studio_draft_provider(),
+    )
+
 
 
 def get_default_image_provider() -> ImageProvider:

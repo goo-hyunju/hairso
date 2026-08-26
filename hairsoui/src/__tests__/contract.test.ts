@@ -8,6 +8,10 @@ import {
   generationStatusSchema,
   generationTypeSchema,
   providerNameSchema,
+  studioCategorySchema,
+  studioProjectStatusSchema,
+  studioTemplateTypeSchema,
+  studioToneSchema,
   videoProviderNameSchema,
   imageProviderNameSchema,
 } from "../lib/api/schemas";
@@ -27,13 +31,14 @@ test("GenerationType parity", () => {
   assert.deepEqual([...generationTypeSchema.options], contract.GenerationType);
 });
 
-test("ProviderName parity (6)", () => {
+test("ProviderName parity (7)", () => {
   assert.deepEqual([...providerNameSchema.options], contract.ProviderName);
 });
 
-test("VideoProviderName parity (5, no GEMINI)", () => {
+test("VideoProviderName parity (5, no GEMINI/LOCAL_SD)", () => {
   assert.deepEqual([...videoProviderNameSchema.options], contract.VideoProviderName);
   assert.ok(!videoProviderNameSchema.options.includes("GEMINI" as never));
+  assert.ok(!videoProviderNameSchema.options.includes("LOCAL_SD" as never));
 });
 
 test("ImageProviderName parity", () => {
@@ -42,4 +47,20 @@ test("ImageProviderName parity", () => {
 
 test("ErrorCode parity (18)", () => {
   assert.deepEqual([...API_ERROR_CODES], contract.ErrorCode);
+});
+
+test("StudioTemplateType parity", () => {
+  assert.deepEqual([...studioTemplateTypeSchema.options], contract.StudioTemplateType);
+});
+
+test("StudioCategory parity", () => {
+  assert.deepEqual([...studioCategorySchema.options], contract.StudioCategory);
+});
+
+test("StudioTone parity", () => {
+  assert.deepEqual([...studioToneSchema.options], contract.StudioTone);
+});
+
+test("StudioProjectStatus parity", () => {
+  assert.deepEqual([...studioProjectStatusSchema.options], contract.StudioProjectStatus);
 });

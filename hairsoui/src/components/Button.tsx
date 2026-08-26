@@ -8,8 +8,10 @@ import type { ComponentProps, ReactNode } from "react";
 type Variant = "primary" | "secondary";
 
 const variantClass: Record<Variant, string> = {
-  primary: "bg-gray-900 text-white hover:bg-gray-800",
-  secondary: "bg-white text-gray-900 border border-gray-300 hover:bg-gray-50",
+  primary:
+    "bg-[var(--ui-action-primary)] text-[var(--ui-action-on-primary)] hover:bg-[var(--ui-action-primary-hover)]",
+  secondary:
+    "border border-[var(--ui-border-default)] bg-[var(--ui-surface-elevated)] text-[var(--ui-content-primary)] hover:bg-[var(--ui-surface-muted)]",
 };
 
 export interface ButtonProps extends ComponentProps<"button"> {
@@ -20,7 +22,7 @@ export interface ButtonProps extends ComponentProps<"button"> {
 export function Button({ variant = "primary", className = "", children, ...rest }: ButtonProps) {
   return (
     <button
-      className={`inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-base font-medium transition-colors disabled:opacity-50 ${variantClass[variant]} ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-base font-semibold transition-colors disabled:opacity-50 ${variantClass[variant]} ${className}`}
       {...rest}
     >
       {children}

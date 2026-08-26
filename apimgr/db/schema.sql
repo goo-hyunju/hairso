@@ -136,7 +136,8 @@ CREATE TABLE generations (
                        CHECK (generation_type IN ('IMAGE', 'VIDEO')),
     provider           text NOT NULL
                        CHECK (provider IN ('MOCK', 'GEMINI', 'PIXVERSE',
-                                           'FAL_WAN', 'WAN_CLOUD_API', 'SELF_HOSTED_WAN')),
+                                           'FAL_WAN', 'WAN_CLOUD_API',
+                                           'SELF_HOSTED_WAN', 'LOCAL_SD')),
     model              text,                        -- env/Registry 관리(하드코딩 금지)
     status             text NOT NULL DEFAULT 'CREATED'
                        CHECK (status IN ('CREATED', 'UPLOADING', 'SUBMITTED', 'QUEUED',
@@ -214,10 +215,100 @@ CREATE TABLE credit_transactions (
     provider           text
                        CHECK (provider IS NULL OR provider IN (
                            'MOCK', 'GEMINI', 'PIXVERSE',
-                           'FAL_WAN', 'WAN_CLOUD_API', 'SELF_HOSTED_WAN')),
+                           'FAL_WAN', 'WAN_CLOUD_API', 'SELF_HOSTED_WAN', 'LOCAL_SD')),
     reason             text,
     idempotency_key    text,
     created_at         timestamptz NOT NULL DEFAULT now(),
     UNIQUE (idempotency_key)
 );
 CREATE INDEX idx_credit_generation ON credit_transactions(generation_id);
+
+-- 11. storage_profiles (Studio 저장 위치 profile — 비밀값 저장 금지) ----------
+CREATE TABLE storage_profiles (
+    name             text PRIMARY KEY,
+    storage_backend  text NOT NULL
+                     CHECK (storage_backend IN ('LOCAL_DISK', 'SUPABASE')),
+    bucket_name      text,
+    base_prefix      text NOT NULL DEFAULT 'studio/outputs',
+    retention_days   int NOT NULL DEFAULT 30 CHECK (retention_days > 0),
+    config           jsonb NOT NULL DEFAULT '{}'::jsonb,
+    is_default       boolean NOT NULL DEFAULT false,
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    updated_at       timestamptz NOT NULL DEFAULT now()
+);
+
+-- 12. studio_projects ---------------------------------------------------------
+CREATE TABLE studio_projects (
+    id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    template_type        text NOT NULL
+                         CHECK (template_type IN ('PROMOTION_SHORT', 'SALON_EVENT_PROMOTION')),
+    category             text NOT NULL DEFAULT 'HAIR'
+                         CHECK (category IN ('HAIR', 'BEAUTY', 'HEALTH', 'PRODUCT',
+                                             'LOCAL_BUSINESS')),
+    status               text NOT NULL DEFAULT 'DRAFTING'
+                         CHECK (status IN ('DRAFTING', 'DRAFT_READY', 'RENDERING',
+                                           'SUCCEEDED', 'FAILED')),
+    title                text NOT NULL,
+    offer_text           text NOT NULL,
+    cta_text             text NOT NULL,
+    duration_seconds     int NOT NULL CHECK (duration_seconds IN (15, 30)),
+    target_audience      text,
+    tone                 text NOT NULL DEFAULT 'FRIENDLY'
+                         CHECK (tone IN ('CALM', 'TRENDY', 'PREMIUM', 'FRIENDLY')),
+    disclaimer           text,
+    created_by           uuid,
+    storage_profile_name text NOT NULL DEFAULT 'local-dev' REFERENCES storage_profiles(name),
+    render_generation_id uuid REFERENCES generations(id) ON DELETE SET NULL,
+    output_asset_id      uuid REFERENCES assets(id) ON DELETE SET NULL,
+    created_at           timestamptz NOT NULL DEFAULT now(),
+    updated_at           timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_studio_projects_status ON studio_projects(status);
+CREATE INDEX idx_studio_projects_render_generation ON studio_projects(render_generation_id);
+
+-- 13. studio_project_assets ---------------------------------------------------
+CREATE TABLE studio_project_assets (
+    project_id  uuid NOT NULL REFERENCES studio_projects(id) ON DELETE CASCADE,
+    asset_id    uuid NOT NULL REFERENCES assets(id) ON DELETE RESTRICT,
+    asset_role  text NOT NULL CHECK (asset_role IN ('IMAGE', 'LOGO')),
+    sort_order  int NOT NULL DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (project_id, asset_id, asset_role)
+);
+CREATE INDEX idx_studio_project_assets_asset ON studio_project_assets(asset_id);
+
+-- 14. studio_drafts -----------------------------------------------------------
+CREATE TABLE studio_drafts (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id  uuid NOT NULL REFERENCES studio_projects(id) ON DELETE CASCADE,
+    version     int NOT NULL CHECK (version > 0),
+    script      jsonb NOT NULL,
+    storyboard  jsonb NOT NULL,
+    is_current  boolean NOT NULL DEFAULT true,
+    created_by  uuid,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (project_id, version)
+);
+CREATE UNIQUE INDEX idx_studio_drafts_current
+    ON studio_drafts(project_id)
+    WHERE is_current = true;
+
+-- 15. studio_render_jobs ------------------------------------------------------
+CREATE TABLE studio_render_jobs (
+    id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id       uuid NOT NULL REFERENCES studio_projects(id) ON DELETE CASCADE,
+    generation_id    uuid NOT NULL REFERENCES generations(id) ON DELETE CASCADE,
+    draft_version    int NOT NULL,
+    idempotency_key  text NOT NULL,
+    status           text NOT NULL DEFAULT 'SUBMITTED'
+                     CHECK (status IN ('SUBMITTED', 'PROCESSING', 'SUCCEEDED', 'FAILED',
+                                       'CANCELED', 'EXPIRED')),
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    updated_at       timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (idempotency_key),
+    UNIQUE (generation_id)
+);
+CREATE UNIQUE INDEX idx_studio_render_jobs_one_active
+    ON studio_render_jobs(project_id)
+    WHERE status IN ('SUBMITTED', 'PROCESSING');

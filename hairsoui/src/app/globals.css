@@ -1,1 +1,101 @@
 @import "tailwindcss";
+
+:root {
+  --ui-surface-page: #f5f1ea;
+  --ui-surface-panel: #fffaf1;
+  --ui-surface-elevated: #ffffff;
+  --ui-surface-inverse: #141414;
+  --ui-surface-muted: #eee7db;
+  --ui-content-primary: #171717;
+  --ui-content-secondary: #4b4740;
+  --ui-content-muted: #756f66;
+  --ui-content-inverse: #fffaf1;
+  --ui-content-inverse-muted: #d9cfc0;
+  --ui-border-inverse: #3c352c;
+  --ui-border-default: #ded5c7;
+  --ui-border-strong: #8d8275;
+  --ui-action-primary: #171717;
+  --ui-action-primary-hover: #2b2926;
+  --ui-action-on-primary: #fffaf1;
+  --ui-action-accent: #b45309;
+  --ui-action-accent-soft: #fff0d6;
+  --ui-status-neutral-bg: #ebe5da;
+  --ui-status-neutral-text: #4b4740;
+  --ui-status-progress-bg: #fff0d6;
+  --ui-status-progress-text: #9a3412;
+  --ui-status-success-bg: #ddf7e8;
+  --ui-status-success-text: #166534;
+  --ui-status-error-bg: #fee2e2;
+  --ui-status-error-text: #991b1b;
+  --ui-focus-ring: #d97706;
+}
+
+@layer base {
+  body {
+    background: var(--ui-surface-page);
+    color: var(--ui-content-primary);
+  }
+}
+
+@layer components {
+  .studio-panel {
+    border: 1px solid var(--ui-border-default);
+    border-radius: 8px;
+    background: var(--ui-surface-panel);
+  }
+
+  .studio-panel-elevated {
+    border: 1px solid var(--ui-border-default);
+    border-radius: 8px;
+    background: var(--ui-surface-elevated);
+    box-shadow: 0 18px 50px rgb(23 23 23 / 0.08);
+  }
+
+  .studio-input {
+    min-height: 44px;
+    width: 100%;
+    border: 1px solid var(--ui-border-default);
+    border-radius: 8px;
+    background: var(--ui-surface-elevated);
+    color: var(--ui-content-primary);
+    outline: none;
+  }
+
+  .studio-input:focus {
+    border-color: var(--ui-focus-ring);
+    box-shadow: 0 0 0 3px rgb(217 119 6 / 0.16);
+  }
+
+  .studio-muted-tile {
+    border: 1px solid var(--ui-border-default);
+    border-radius: 8px;
+    background: var(--ui-surface-muted);
+  }
+
+  .studio-pill {
+    border-radius: 999px;
+    background: var(--ui-status-neutral-bg);
+    color: var(--ui-status-neutral-text);
+  }
+
+  .studio-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ui-content-secondary);
+  }
+
+  .studio-preview-canvas {
+    background:
+      radial-gradient(circle at top, var(--ui-action-accent-soft) 0%, var(--ui-surface-muted) 36%, var(--ui-surface-inverse) 100%);
+  }
+
+  .studio-preview-frame {
+    border: 1px solid var(--ui-border-inverse);
+    background: var(--ui-surface-inverse);
+    color: var(--ui-content-inverse);
+  }
+
+  .studio-inverse-divider {
+    border-color: var(--ui-border-inverse);
+  }
+}

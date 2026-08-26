@@ -349,7 +349,7 @@ core = leaf  <span class="c"># app 내 어떤 모듈도 import 안 함</span>
       <pre><span class="k">cd</span> apimgr
 python -m venv .venv
 .venv/Scripts/python -m pip install -e <span class="s">".[dev]"</span>   <span class="c"># macOS/Linux: .venv/bin/python</span>
-.venv/Scripts/python -m pytest -q                <span class="c"># → 44 passed</span>
+.venv/Scripts/python -m pytest -q                <span class="c"># → 84 passed · 5 skipped</span>
 .venv/Scripts/python -m uvicorn main:app --reload <span class="c"># http://127.0.0.1:8000/docs</span></pre>
       <h3>프론트엔드 (hairsoui)</h3>
       <pre><span class="k">cd</span> hairsoui
@@ -358,8 +358,8 @@ npm run typecheck   <span class="c"># → 0 (tsc --noEmit, strict + noUncheckedI
 npm run test        <span class="c"># → 12 passed (node --test + tsx)</span>
 npm run build       <span class="c"># → 0 (next build)</span>
 npm run lint        <span class="c"># → 0 (no-explicit-any: error)</span></pre>
-      <div class="note"><b>검증 결과(설치 시점 실측):</b> BE <code>pytest 44 passed</code> · compile OK · 의존방향 게이트 0 ·
-        TestClient 스모크(202/상태조회/idempotent/404/오류 envelope). FE <code>typecheck 0 · test 12 · build 0 · lint 0</code>.
+      <div class="note"><b>검증 결과(설치 시점 실측):</b> BE <code>pytest 84 passed · 5 skipped</code> · <code>unittest 89 ran · 5 skipped</code> · compile OK ·
+        TestClient 스모크(202/상태조회/idempotent/404/오류 envelope/Studio). FE <code>typecheck 0 · test 20 · lint 0</code>.
         버전: fastapi 0.139.0 · pydantic 2.13.4 · next 15.5.20 · react 19.2.7 · zod 4.4.3 · tailwind 4.3.2.
         <br />※ 이 수치는 로컬 실행 로그 기준입니다.</div>
     </section>
@@ -452,6 +452,7 @@ npm run lint        <span class="c"># → 0 (no-explicit-any: error)</span></pre
       <div class="kv">
         <dt>image_analysis</dt><dd>사진·헤어 구조 분석 (Gemini 예정)</dd>
         <dt>image_generation</dt><dd>얼굴 유지 헤어 합성 (Gemini 편집 예정)</dd>
+        <dt>studio_draft</dt><dd>Studio script/storyboard 초안 생성 (MOCK 기본, backend-only local OLLAMA 옵션)</dd>
         <dt>video_generation</dt><dd>이미지→영상 (Provider는 env/Registry로 교체 — PixVerse·fal·Wan 계열 후보, 모델명·가격은 unverified·하드코딩 안 함)</dd>
       </div>
       <p class="measure">Mock 영상 Provider는 8가지 시나리오를 결정적으로 재현합니다:
@@ -468,7 +469,7 @@ npm run lint        <span class="c"># → 0 (no-explicit-any: error)</span></pre
       <div class="kv">
         <dt>GenerationStatus</dt><dd>10개 (CREATED … EXPIRED)</dd>
         <dt>ErrorCode</dt><dd>18개 (ASSET_INVALID … UNKNOWN)</dd>
-        <dt>ProviderName</dt><dd>6개 (MOCK/GEMINI/PIXVERSE/FAL_WAN/WAN_CLOUD_API/SELF_HOSTED_WAN)</dd>
+        <dt>ProviderName</dt><dd>7개 (MOCK/GEMINI/PIXVERSE/FAL_WAN/WAN_CLOUD_API/SELF_HOSTED_WAN/LOCAL_SD)</dd>
         <dt>VideoProviderName</dt><dd>5개 (GEMINI 제외)</dd>
       </div>
       <div class="note"><b>parity 테스트가 강제하는 축은 enum 값·순서뿐</b>입니다. 와이어 필드명은 snake_case로
@@ -481,9 +482,9 @@ npm run lint        <span class="c"># → 0 (no-explicit-any: error)</span></pre
       <h2>3구간 라벨 — 무엇이 진짜 되나</h2>
       <p class="measure">이 프로젝트의 정직성 앵커입니다. 정본은 <code>docs/LABELS.md</code>.</p>
       <div class="cards">
-        <div class="card"><h3>구현·검증완료 <span class="pill done">실행됨</span></h3><p>도메인·상태머신·Mock Provider·in-memory Repo·Service·라우터·오류 envelope·계약 parity. BE pytest 44 / FE 0·12·0·0.</p></div>
-        <div class="card"><h3>Mock <span class="pill mock">모의</span></h3><p>모든 Provider 기본 Mock. 비용은 <code>Decimal("0.00")</code> placeholder. 저장소는 단일 프로세스 in-memory.</p></div>
-        <div class="card"><h3>미구현 <span class="pill road">로드맵</span></h3><p>실 외부 AI·실 DB·R2·FFmpeg·카메라·MediaPipe·인증(JWT)·세 모드 화면·PWA.</p></div>
+        <div class="card"><h3>구현·검증완료 <span class="pill done">실행됨</span></h3><p>도메인·상태머신·Mock Provider·SELF_HOSTED_WAN 로컬 MP4 opt-in·in-memory Repo·Service·라우터·오류 envelope·계약 parity·Studio flow. BE pytest 84 / unittest 89 / FE 0·20·0.</p></div>
+        <div class="card"><h3>Mock <span class="pill mock">모의</span></h3><p>모든 Provider 기본 Mock. Studio draft는 로컬 Ollama, 영상 render는 SELF_HOSTED_WAN 옵션이 있으나 기본은 Mock. 비용은 <code>Decimal("0.00")</code> placeholder. 저장소는 단일 프로세스 in-memory.</p></div>
+        <div class="card"><h3>미구현 <span class="pill road">로드맵</span></h3><p>실 외부 AI·대용량 Wan/CogVideoX GPU 실행·실 DB·R2·FFmpeg·카메라·MediaPipe·인증(JWT)·세 모드 화면·PWA.</p></div>
       </div>
     </section>
 
