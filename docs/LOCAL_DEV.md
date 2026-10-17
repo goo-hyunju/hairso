@@ -1,7 +1,7 @@
 # 로컬 개발 실행 — FE ↔ BE 통합 배선 (검증본)
 
 hairso 를 로컬에서 BE(apimgr) + FE(hairsoui) 함께 띄우는 단일 안내다.
-아래 배선은 **실제 왕복(202 → 상태폴링 → SUCCEEDED)까지 실행해 검증**했다.
+아래 배선은 **실제 왕복(202 → 상태폴링 → SUCCEEDED)까지 실행해 검증**했다(2026-10-17 Mock Provider 왕복 재검증).
 
 ## 포트·경로 계약 (고정값)
 
@@ -66,6 +66,7 @@ docker compose -f docker-compose.dev.yml up --build
 
 Compose 환경변수:
 
+- BE `APP_HOST=0.0.0.0`, `LOCAL_VIDEO_TIMEOUT_SECONDS=900`, `MOCK_ADVANCE_INTERVAL_SEC=1.0`
 - FE `API_PROXY_TARGET=http://apimgr:8000`
 - FE `NEXT_PUBLIC_API_BASE_URL=` 빈 값 유지
 - BE `DEFAULT_*_PROVIDER=MOCK`
@@ -94,20 +95,43 @@ Studio render를 로컬 MP4 provider로 시험하려면 BE 환경에만 다음�
 DEFAULT_VIDEO_PROVIDER=SELF_HOSTED_WAN
 LOCAL_VIDEO_INFERENCE_URL=http://127.0.0.1:8188
 LOCAL_VIDEO_ENDPOINT_PATH=/video/i2v
-LOCAL_VIDEO_TIMEOUT_SECONDS=900
+LOCAL_VIDEO_TIMEOUT_SECONDS=3600
 SELF_HOSTED_WAN_VIDEO_MODEL=<local-wan-or-compatible-model-name>
+VIDEO_GENERATION_POLL_INTERVAL_SECONDS=10
+# 비우면 LOCAL_VIDEO_TIMEOUT_SECONDS 기준으로 자동 계산
+VIDEO_GENERATION_MAX_POLLS=
 ```
 
-그리고 `ml/serve.py`를 실행하는 터미널에는 실제 로컬 렌더 명령을 지정한다. 명령은 `{input}`, `{prompt_file}`, `{output}`, `{meta_file}` placeholder를 사용할 수 있다.
+`ml/serve.py`는 영상 job API를 제공한다. `POST /video/i2v`는 오래 막히지 않고 `job_id`를 즉시 반환하고, BE는 `GET /video/i2v/{job_id}`를 polling하다가 `GET /video/i2v/{job_id}/output`에서 MP4를 받아 Storage에 저장한다.
+
+Studio render 는 프로젝트 duration(5/15/30초)·9:16·480p 를 전달한다. ml 의 내장 Diffusers 경로는 `WAN_VIDEO_MAX_SECONDS`(기본 5)로 요청 초를 자른 뒤 프레임 올림으로 인코딩하고(기본 약 5.04초), `LOCAL_VIDEO_RENDER_COMMAND` 외부 명령 경로는 요청 길이를 그대로 전달한다. 720p는 API에서 허용하지만 8GB VRAM 환경에서는 스모크 테스트 후 켠다. 기본은 프로세스 내 Wan Diffusers 경로다. 실제 설치·모델 다운로드는 대용량 작업이므로 명시 승인 후 진행한다.
 
 ```bash
 cd ml
-$env:LOCAL_VIDEO_RENDER_COMMAND='python wan_i2v.py --image {input} --prompt-file {prompt_file} --output {output}'
-$env:LOCAL_VIDEO_RENDER_TIMEOUT_SECONDS='900'
+.venv/Scripts/python -m pip install -r requirements-wan.txt
+$env:WAN_VIDEO_MODEL_ID='Wan-AI/Wan2.2-TI2V-5B-Diffusers'
+$env:WAN_VIDEO_MAX_SECONDS='5'
+$env:WAN_VIDEO_FPS='24'
 .venv/Scripts/python -m uvicorn serve:app --host 127.0.0.1 --port 8188
 ```
 
-`LOCAL_VIDEO_RENDER_COMMAND`가 없으면 `/video/i2v`는 503을 반환한다. 이 저장소는 대용량 Wan/CogVideoX 모델을 자동 다운로드하지 않는다.
+GGUF transformer를 쓰는 경우에는 Diffusers GGUF 경로가 실제 파일과 호환되는지 스모크 테스트로 확정해야 한다. 값은 환경변수로만 지정한다.
+
+```bash
+$env:WAN_VIDEO_TRANSFORMER_GGUF='C:\path\to\wan2.2-ti2v-5b-q5_k_m.gguf'
+```
+
+기존 외부 렌더 스크립트를 유지하려면 `ml/serve.py`를 실행하는 터미널에 로컬 렌더 명령을 지정한다. 명령은 `{input}`, `{prompt_file}`, `{output}`, `{meta_file}` placeholder를 사용할 수 있다.
+
+```bash
+cd ml
+# serve.py 가 subprocess 를 임시 작업 디렉터리에서 실행하므로 Python 과 스크립트는 절대 경로로 지정한다
+$env:LOCAL_VIDEO_RENDER_COMMAND='C:\path\to\ml\.venv\Scripts\python.exe C:\path\to\your_render_script.py --image {input} --prompt-file {prompt_file} --output {output}'
+$env:LOCAL_VIDEO_RENDER_TIMEOUT_SECONDS='3600'
+.venv/Scripts/python -m uvicorn serve:app --host 127.0.0.1 --port 8188
+```
+
+`LOCAL_VIDEO_RENDER_COMMAND`가 없으면 `ml/wan_video.py` 가 `Wan-AI/Wan2.2-TI2V-5B-Diffusers`를 로드한다(기본 경로). 저장소에 모델 파일은 포함하지 않으며, 최초 로드 시 Hugging Face Hub 에서 자동 다운로드한다(약 32GB — 작성자 보고, 자동 검증 없음).
 
 Compose volume:
 
@@ -141,6 +165,52 @@ Compose volume:
 - 현재 인증은 선택적이므로 실 고객 이미지·실 Provider 작업 전에 인증 필수화와 DB 기반 idempotency가 필요하다.
 
 공개 인터넷 노출은 이 개발 compose 범위가 아니다. TLS, reverse proxy, rate limit, 감사 로그, 지속 저장소, 공유 토큰 만료 정책이 먼저 확정되어야 한다.
+
+## Tailscale 모바일 접속
+
+이 PC와 핸드폰이 같은 Tailnet에 있으면 FE만 Tailscale IP로 열어 모바일에서 접속한다. BE와 ML은 서버 PC 내부 주소를 유지한다.
+
+```bash
+# BE
+cd apimgr
+$env:APP_LOAD_DOTENV='0'
+$env:ASSET_STORE_BACKEND='LOCAL_DISK'
+$env:DEFAULT_VIDEO_PROVIDER='SELF_HOSTED_WAN'
+$env:LOCAL_VIDEO_INFERENCE_URL='http://127.0.0.1:8188'
+$env:LOCAL_VIDEO_ENDPOINT_PATH='/video/i2v'
+$env:LOCAL_VIDEO_TIMEOUT_SECONDS='3600'
+$env:SELF_HOSTED_WAN_VIDEO_MODEL='Wan-AI/Wan2.2-TI2V-5B-Diffusers'
+$env:VIDEO_GENERATION_POLL_INTERVAL_SECONDS='10'
+.venv/Scripts/python -m uvicorn main:app --host 127.0.0.1 --port 8010
+
+# ML
+cd ml
+$env:WAN_VIDEO_MODEL_ID='Wan-AI/Wan2.2-TI2V-5B-Diffusers'
+$env:WAN_VIDEO_MAX_SECONDS='5'
+$env:WAN_VIDEO_FPS='24'
+$env:WAN_VIDEO_NUM_INFERENCE_STEPS='20'
+$env:WAN_VIDEO_OFFLOAD='group'
+.venv/Scripts/python -m uvicorn serve:app --host 127.0.0.1 --port 8188
+
+# FE: 외부 기기 접속 허용
+cd hairsoui
+$env:API_PROXY_TARGET='http://127.0.0.1:8010'
+npm run dev -- --hostname 0.0.0.0 --port 3001
+```
+
+핸드폰 브라우저:
+
+```text
+http://<이-PC의-Tailscale-IP>:3001/studio
+```
+
+예를 들어 서버 PC 의 Tailscale IP 가 `100.x.y.z` 이면:
+
+```text
+http://100.x.y.z:3001/studio
+```
+
+Windows Firewall은 TCP 3001만 Tailnet 클라이언트에서 접근 가능하게 연다. `8000`, `8188`, `11434`는 외부 직접 접근 대상으로 두지 않는다.
 
 Compose smoke:
 

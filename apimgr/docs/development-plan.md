@@ -7,8 +7,8 @@
 - 도메인: GenerationStatus(10)·ErrorCode(18)·ProviderName(7)·CreditTxType enum, 타입별 상태 전이표, ProviderJobStatus 매핑.
 - Mock Provider 4종(image_analysis / image_generation / video_generation / studio_draft) — video 8시나리오.
 - in-memory Repository + idempotency 근사, GenerationService, WebhookService(서명검증·중복안전).
-- FastAPI 라우터(health/consultations/style/video-generations/generations/webhooks), 202 비동기.
-- 참고 DDL(`db/schema.sql`), `contract/enums.json`, Studio Mock API, backend-only local Ollama draft provider 옵션, SELF_HOSTED_WAN 로컬 MP4 provider opt-in, pytest 84 + unittest 89 + TestClient 스모크.
+- FastAPI 라우터 7개 모듈·15 라우트(health/consultations[스텁]/style[Mock 고정]/assets/generations(video·image·status)/studio(6)/webhooks[스텁]), 202 비동기.
+- 참고 DDL(`db/schema.sql`), `contract/enums.json`, Studio Mock API, backend-only local Ollama draft provider 옵션, SELF_HOSTED_WAN 로컬 MP4 provider opt-in, pytest 107 passed·5 skipped(2026-10-17 실행) + TestClient 스모크.
 
 ## 로드맵 `[미구현-로드맵]`
 - **2주차:** Gemini 실 분석 연동(스타일 JSON), 사진 품질 서버 재검증(§4.14).

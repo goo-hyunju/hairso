@@ -1,4 +1,6 @@
-# PRD — HairView AI
+# PRD — HairView AI (초기 기획)
+
+> 이 문서는 **초기 기획(미용 상담 서비스)** 이다. 현재 제품 범위는 Hairso Studio(세로 쇼츠 제작)이며 정본은 [`PRD-video-studio.md`](./PRD-video-studio.md) · [`STUDIO_MVP_PLAN.md`](./STUDIO_MVP_PLAN.md). 아래 상담 흐름(촬영·스타일 분석·QR 공유)은 로드맵이다.
 
 ## 한 줄 정의
 미용실 고객이 얼굴을 촬영/업로드하고 참고 헤어 사진을 고르면, **고객 얼굴은 유지**하고 헤어스타일만 적용한 예상 이미지 3종과 5초 영상을 생성하는 AI 미용 상담 서비스.

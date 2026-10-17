@@ -2,7 +2,7 @@
 
 ## Summary
 
-Hairso Studio turns salon photos and short prompts into vertical videos. The first product goal is not a general-purpose AI video editor. It is one dependable salon workflow that creates a 9:16 promotional or consultation short from existing Hairso capabilities.
+Hairso Studio turns salon photos and short prompts into vertical videos. The first product goal is not a general-purpose AI video editor. It is one dependable salon workflow that creates a 9:16 natural hair styling motion clip from existing Hairso capabilities.
 
 The MVP must preserve the current mock scaffold and complete one reliable flow before adding paid providers, a professional editor, or automatic social publishing.
 
@@ -25,7 +25,7 @@ The MVP must preserve the current mock scaffold and complete one reliable flow b
 
 1. User opens the dashboard and selects a video template.
 2. User uploads up to 6 images and optionally 1 logo.
-3. User enters a promotion, topic, price, offer, or explanation.
+3. User enters a styling direction, topic, offer, or explanation.
 4. System drafts a title, hook, narration, captions, scenes, and call to action.
 5. User edits the script and storyboard.
 6. User starts generation.
@@ -40,28 +40,32 @@ The repository already has a lower-level mock generation scaffold:
 - FE can call `POST /api/v1/video-generations` and poll `GET /api/v1/generations/{id}` from `hairsoui/src/features/video-generation/GenerationFlow.tsx`.
 - BE owns provider submission, status mapping, idempotency, and cost fields through the generation service and provider abstractions.
 - The current status contract has 10 values: `CREATED`, `UPLOADING`, `SUBMITTED`, `QUEUED`, `PROCESSING`, `POST_PROCESSING`, `SUCCEEDED`, `FAILED`, `CANCELED`, `EXPIRED`.
-- Mock providers are the default local path. A backend-only `SELF_HOSTED_WAN` opt-in path can store MP4 bytes returned by a local `/video/i2v` compatible server. Real PixVerse, Wan Cloud, fal, Gemini, FFmpeg/R2 post-processing, credits, auth, QR/share, large model downloads, GPU execution, and real uploads remain roadmap unless separately implemented.
+- Mock providers are the default local path. A backend-only `SELF_HOSTED_WAN` opt-in path can store MP4 bytes returned by a local `/video/i2v` compatible server. Real uploads (`POST /assets`) and local GPU execution (`ml/` with Wan 2.2 / SD1.5, opt-in, model auto-download on first load) are implemented. Real PixVerse, Wan Cloud, fal, Gemini, FFmpeg/R2 post-processing, credits, mandatory auth (JWT is optional today), and QR/share remain roadmap.
 - Studio draft generation may use a backend-only local Ollama provider for script/storyboard JSON, but the default local path remains Mock and must not call paid external providers.
 
 This PRD describes the Studio product layer to build on top of that scaffold. It is not permission to rename working FE/BE modules or replace the current generation API in one step.
 
 ## Initial Templates
 
-### Promotion Short
+### Hair Styling
 
-For short category-based promotional reels with offer, price, duration, and CTA.
+For natural image-to-video hair styling shots that preserve face identity, hairline, hair color, and the uploaded hairstyle structure while adding subtle head and hair motion.
 
-### Event Promotion
+### Salon Notice
 
-For local business or salon event reels with a time-bound benefit and booking CTA.
+For short salon notice reels with style explanation, schedule, atmosphere, and CTA.
+
+### Event Notice
+
+For local business or salon event reels with a time-bound schedule and booking CTA.
 
 ### Before/After
 
 For treatment result videos using uploaded before/after images.
 
-### Event Promotion
+### Salon Update
 
-For short promotional reels with price, offer, designer, and booking CTA.
+For short salon update reels with designer, style direction, and booking CTA.
 
 ### Information Short
 
@@ -72,16 +76,16 @@ For hair, beauty, product, or health explanations using approved source material
 ### Inputs
 
 - Template type
-- Topic or promotion text
+- Styling direction, topic, or notice text
 - Optional target audience
 - Tone
-- Duration: 15s or 30s
+- Duration: 15s or 30s (target — current local Wan output is clamped to ~5s by default; 5s is also accepted for hair/free templates)
 - Aspect ratio: 9:16
 - Images: up to 6
 - Logo: up to 1
 - CTA text
 
-The Studio output duration is 15s or 30s. Existing low-level video provider clips may still use shorter provider-specific durations, such as the current 5s or 8s request contract, as bounded scene assets inside the composed final video.
+The **target** Studio output duration is 15s or 30s. **Currently** the renderer produces a single clip from one image and the local Wan path clamps output to ~5s by default; multi-scene composition into 15s/30s is roadmap. Existing low-level video provider clips may still use shorter provider-specific durations, such as the current 5s or 8s request contract, as bounded scene assets inside the composed final video.
 
 ### Generated Content
 
@@ -193,15 +197,15 @@ This milestone proves the workflow before adding real paid providers.
 ### Acceptance Criteria
 
 - The current `/try` mock generation route may remain only as an internal regression path, but it is not a product entry point.
-- The first happy path template is **Promotion Short** with Hair as the default category, and can run from input to result without paid provider calls.
-- **Event Promotion** is selectable and uses the same project, draft, render, and result contract.
+- The first happy path template is **Hair Styling** with Hair as the default category, and can run from input to result without paid provider calls.
+- **Event Notice** is selectable and uses the same project, draft, render, and result contract.
 - Script and storyboard are visible and editable before generation starts.
 - Repeated generate clicks or page refreshes do not create duplicate paid jobs; idempotency keys are used intentionally.
 - Studio asset references reject URL/path/Base64-shaped inputs and unknown or inaccessible assets.
 - FE never sends provider credentials or calls external AI providers directly.
 - BE logs use IDs such as `asset_id`, `generation_id`, and `project_id`, not image URLs, signed URLs, Base64 payloads, or secrets.
 - Result state reaches a clear terminal state: success with preview/result reference, or failure with safe user-facing error messaging.
-- Mock result references are not presented as production-quality generated videos. `SELF_HOSTED_WAN` local results may be stored as MP4 assets when a local renderer is explicitly configured, but preview, download, and QR remain product placeholders until the share/render contract is hardened.
+- Mock result references are not presented as production-quality generated videos. `SELF_HOSTED_WAN` local results may be stored as MP4 assets when a local renderer is explicitly configured, download is implemented (`GET /api/v1/studio/projects/{id}/download`); preview and QR remain product placeholders until the share contract is hardened.
 - Local Ollama draft generation, when enabled, must only receive project text and asset counts, not customer media URLs, signed URLs, storage keys, Base64, or raw provider payloads.
 - The implementation can be verified locally with mock providers and without running DB migrations.
 
@@ -212,7 +216,7 @@ This milestone proves the workflow before adding real paid providers.
 3. Add mock script/storyboard draft and edit persistence.
 4. Connect edited storyboard to the existing mock generation job path.
 5. Add result preview and download/share placeholders without public signed URLs.
-6. Only then add real uploads, FFmpeg/R2 rendering, QR/share tokens, credits, auth hardening, and real provider adapters.
+6. Only then add FFmpeg/R2 composition, QR/share tokens, credits, auth hardening, and real provider adapters (real uploads are already implemented).
 
 ## Open Decisions
 
@@ -223,8 +227,8 @@ This milestone proves the workflow before adding real paid providers.
 
 ## Filled Planning Decisions
 
-- First templates: **Promotion Short** and **Event Promotion**.
-- First category set: Hair, Beauty, Health, Product, Local Business. Hair is not the whole product center.
+- First templates: **Hair Styling**, **Salon Notice**, and **Event Notice**.
+- First category set: Hair, Beauty, Health, Product, Local Business, Pet, General (Pet and General are implemented as categories). Hair is not the whole product center.
 - First implementation mode: **Mock-first**, with optional backend-only local Ollama draft generation, no paid provider calls, and no DB migration.
 - First render target: **9:16 vertical preview placeholder** backed by the existing generation status contract.
 - First asset policy: accept uploaded/selected asset IDs, but do not expose signed URLs or raw storage keys.

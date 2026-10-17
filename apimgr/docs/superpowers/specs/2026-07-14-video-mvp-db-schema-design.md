@@ -35,7 +35,7 @@ MVP엔 조직/직원 테이블이 없으므로 **소유자 = 로그인한 Supaba
 - 소유권 참조: `generations.created_by`, `assets.owner_id`, `consents.account_id` → `auth.users(id)`
 - 확장 대비: 나중에 조직을 붙일 때 각 테이블에 `salon_id` 컬럼만 추가하면 되도록 설계(재작업 최소)
 
-### 데이터 접근 경로 (CLAUDE.md §3.4)
+### 데이터 접근 경로 (프로젝트 규칙 §3.4)
 
 ```
 FE ──(로그인/토큰 발급만)──▶ Supabase Auth        # supabase-js
@@ -45,7 +45,7 @@ FE ──(데이터/생성/업로드)──▶ FastAPI(BE) ──▶ Supabase DB
 - FE는 **로그인만** Supabase 직접 호출. 테이블 CRUD·영상 생성·파일 업로드는 **전부 BE 경유**.
 - 따라서 RLS(Row Level Security, 행 단위 접근제어)는 **기본 전체 차단**.
   BE는 `service_role` 키(RLS 우회 관리자 키)로 접근. FE의 anon 키로는 테이블·스토리지에 직접 접근 불가.
-- 근거: 얼굴 사진·생성물 무단 노출 방지(루트 CLAUDE.md §11 최우선순위).
+- 근거: 얼굴 사진·생성물 무단 노출 방지(프로젝트 규칙 §11 최우선순위).
 
 ## 3. 테이블 설계
 

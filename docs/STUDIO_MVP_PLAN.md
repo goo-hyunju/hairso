@@ -8,29 +8,31 @@
 - FE `/studio` 작업 화면에 `Templates -> Draft -> Render -> Result` 단계형 흐름 추가.
 - DB 확장 DDL 초안 `apimgr/db/migrations/0003_studio_mvp.sql` 추가. 실행은 사용자 승인 대상.
 - 저장 위치 설정은 `ASSET_STORE_BACKEND`, `ASSET_LOCAL_ROOT`, `SUPABASE_STORAGE_BUCKET`, `STUDIO_STORAGE_PROFILE_NAME`, `STUDIO_OUTPUT_PREFIX`, `STUDIO_OUTPUT_RETENTION_DAYS`로 분리.
-- 템플릿은 `PROMOTION_SHORT`, `SALON_EVENT_PROMOTION`, 카테고리는 `HAIR`, `BEAUTY`, `HEALTH`, `PRODUCT`, `LOCAL_BUSINESS`로 분리.
+- 템플릿은 기본 헤어 연출 `HAIR_STYLING_MOTION`, 매장 안내형 `PROMOTION_SHORT`, `SALON_EVENT_PROMOTION`, 추가 자유 모드 `FREE_IMAGE_TO_VIDEO`로 분리.
+- 카테고리는 `HAIR`, `BEAUTY`, `HEALTH`, `PRODUCT`, `LOCAL_BUSINESS`, `PET`, `GENERAL`을 지원한다.
 - Studio 입력의 `asset_ids`와 `logo_asset_id`는 URL, 경로, Base64 형태를 거부하고 기존 asset 메타데이터의 존재·상태·소유자·타입을 확인한다.
 - Studio 초안 생성은 `StudioDraftProvider`로 분리. 기본은 결정적 `MOCK`, 옵션으로 로컬 `OLLAMA`를 사용할 수 있다.
 - Project/draft 텍스트 필드는 URL, signed URL, storage key, Base64 형태를 거부해 초안 provider prompt 로 민감 media 참조가 들어가지 않게 한다.
 - Studio render는 `DEFAULT_VIDEO_PROVIDER=MOCK` 기본 경로를 유지한다. `SELF_HOSTED_WAN`으로 명시 설정하면 BE가 로컬 영상 추론 서버(`/video/i2v`)를 호출해 반환된 MP4 바이트를 `GENERATED_VIDEO` 에셋으로 저장할 수 있다.
-- 로컬 영상 provider는 모델 다운로드나 유료 API를 수행하지 않는다. 실제 Wan/CogVideoX/ComfyUI 실행은 `ml/serve.py`의 `LOCAL_VIDEO_RENDER_COMMAND`로 사용자가 별도 설정한 로컬 명령이 담당한다.
+- 로컬 영상 provider는 유료 API를 쓰지 않는다. 기본은 `ml/wan_video.py` 의 Wan 2.2 TI2V-5B Diffusers 직접 실행(모델은 최초 로드 시 Hugging Face 자동 다운로드)이고, `LOCAL_VIDEO_RENDER_COMMAND` 는 외부 렌더 명령 대체 경로다.
 
 ## 1. 첫 템플릿 결정
 
-첫 happy path 템플릿은 **Promotion Short**로 한다. 함께 노출하는 두 번째 템플릿은 **Event Promotion**이며, 기본 카테고리는 **Hair**지만 같은 구조로 Beauty, Health, Product, Local Business까지 확장한다.
+첫 happy path 템플릿은 **Hair Styling**으로 한다. 목적은 광고 문구 작성이 아니라 업로드 사진의 얼굴·헤어 라인·모발 색을 보존하면서 자연스러운 헤어 스타일링 움직임을 만드는 것이다. **Salon Notice**와 **Event Notice**는 별도 매장 안내형 템플릿으로 유지한다. `FREE_IMAGE_TO_VIDEO`는 기존 미용/매장 흐름을 대체하지 않고, 업로드 이미지와 움직임 설명만으로 5초 로컬 I2V 영상을 만드는 추가 모드다.
 
 이유:
 
 - 고객 얼굴 원본 없이도 홍보 문구, 제품/매장/시술 이미지, 로고만으로 Mock end-to-end를 검증할 수 있다.
 - 현재 남아 있는 얼굴 asset 소유권·동의 부채에 덜 민감하다.
-- 운영자가 가격, 기간, 혜택, 예약 CTA를 입력하는 흐름이 명확하다.
+- 기본 헤어 연출에서는 스타일링 방향, 움직임, 유지할 점을 입력하는 흐름이 명확하다.
+- 매장 안내형 템플릿에서는 운영자가 일정, 시술 설명, 예약 CTA를 입력할 수 있다.
 - Before/After와 Hair Simulation은 고객 얼굴, 결과 보장 안내, 동의 정책이 먼저 단단해야 한다.
 
 ## 2. MVP 사용자 흐름
 
 ```text
 Templates
--> 이벤트/프로모션 정보 입력
+-> 스타일·매장 소식 정보 입력
 -> 이미지·로고 업로드 또는 asset_id 선택
 -> Draft: script/storyboard 초안 생성(MOCK 기본, OLLAMA 로컬 옵션)
 -> 사용자가 문구와 장면을 편집
@@ -39,18 +41,18 @@ Templates
 -> Result: output_asset_id 참조, preview/download/QR placeholder 또는 로컬 MP4 asset 표시
 ```
 
-`/try` 저수준 생성 데모는 제품 진입점에서 제외한다. 필요하면 내부 회귀 확인용 route로만 남긴다. Studio는 별도 흐름으로 추가하고, 기존 `POST /api/v1/video-generations`와 `GET /api/v1/generations/{id}`를 재사용한다.
+`/try` 저수준 생성 데모는 제품 진입점에서 제외한다. 필요하면 내부 회귀 확인용 route로만 남긴다. Studio는 별도 흐름으로 추가하고, 기존 `GenerationService`(생성·상태 로직)와 `GET /api/v1/generations/{id}` 상태 조회 계약을 재사용한다. FE 는 `POST /api/v1/studio/projects/{id}/render` 를 호출하며 `POST /api/v1/video-generations` 엔드포인트 자체는 호출하지 않는다(그 엔드포인트를 쓰는 FE 는 `/try` 데모뿐).
 
 ## 3. 입력 범위
 
 필수 입력:
 
-- `template_type`: `PROMOTION_SHORT` 또는 `SALON_EVENT_PROMOTION`
-- `category`: `HAIR`, `BEAUTY`, `HEALTH`, `PRODUCT`, `LOCAL_BUSINESS`
+- `template_type`: `HAIR_STYLING_MOTION`, `PROMOTION_SHORT`, `SALON_EVENT_PROMOTION`, `FREE_IMAGE_TO_VIDEO`
+- `category`: `HAIR`, `BEAUTY`, `HEALTH`, `PRODUCT`, `LOCAL_BUSINESS`, `PET`, `GENERAL`
 - `title`: 이벤트명 또는 시술명
-- `offer_text`: 가격, 할인, 기간, 조건
-- `cta_text`: 예약, 상담, 전화, 카카오 문의 같은 행동 유도 문구
-- `duration_seconds`: `15` 또는 `30`
+- `offer_text`: `HAIR_STYLING_MOTION`에서는 헤어 스타일링과 움직임 설명. 매장 안내형 템플릿에서는 일정, 시술 설명, 장면 설명. `FREE_IMAGE_TO_VIDEO`에서는 움직임 설명.
+- `cta_text`: `HAIR_STYLING_MOTION`과 `FREE_IMAGE_TO_VIDEO`에서는 짧은 자막 또는 end cue. 매장 안내형 템플릿에서는 예약, 상담, 전화, 카카오 문의 같은 행동 유도 문구.
+- `duration_seconds`: `5`(헤어 연출·자유 프롬프트 기본) · `15` · `30`. 요청 길이이며 ml 내장 Diffusers 경로는 `WAN_VIDEO_MAX_SECONDS`(기본 5초, 변경 가능, 실제 파일 약 5.04초)로 자른다(외부 렌더 명령 경로는 요청 길이 그대로 전달).
 
 선택 입력:
 
@@ -58,7 +60,7 @@ Templates
 - `tone`: `CALM`, `TRENDY`, `PREMIUM`, `FRIENDLY`
 - `asset_ids`: 최대 6개. URL, 경로, Base64 문자열은 거부하고 asset 메타데이터를 확인
 - `logo_asset_id`: 최대 1개. `asset_ids`와 같은 검증 적용
-- `disclaimer`: 매장 정책 또는 가격 조건 안내
+- `disclaimer`: 헤어 연출에서는 유지할 얼굴·헤어 조건. 매장 안내형에서는 매장 정책 또는 진행 조건 안내
 
 ## 4. 초안 데이터 구조
 
@@ -76,17 +78,17 @@ Templates
 ```json
 {
   "project_id": "uuid",
-  "template_type": "PROMOTION_SHORT",
+  "template_type": "HAIR_STYLING_MOTION",
   "category": "HAIR",
-  "title": "봄맞이 클리닉 이벤트",
+  "title": "자연스러운 헤어 스타일링",
   "script": {
-    "hook": "이번 주, 푸석한 머릿결을 차분하게 정리해 보세요.",
+    "hook": "자연스러운 헤어 결을 짧게 보여줍니다.",
     "narration": [
-      "손상 모발을 위한 집중 클리닉 이벤트를 준비했습니다.",
-      "상담 후 모발 상태에 맞춰 케어 단계를 추천해 드립니다.",
-      "예약 문의는 프로필 링크 또는 매장 전화로 남겨 주세요."
+      "업로드한 사진의 인물과 헤어 라인을 유지합니다.",
+      "부드러운 고개 움직임과 자연스러운 모발 결 흔들림을 만듭니다.",
+      "얼굴과 기존 모발 색은 바꾸지 않습니다."
     ],
-    "cta": "오늘 예약 문의하기"
+    "cta": "Natural styling look"
   },
   "storyboard": [
     {
@@ -132,7 +134,7 @@ Templates
 - `/try`는 제품 진입점에서 제거하고, 필요 시 내부 회귀 데모로만 유지
 - Studio `Templates -> Draft -> Render -> Result` 흐름이 Mock으로 끝까지 진행
 - `DEFAULT_VIDEO_PROVIDER=SELF_HOSTED_WAN` opt-in 시 로컬 `/video/i2v` 호환 서버가 반환한 MP4 바이트를 `GENERATED_VIDEO`로 저장
-- `PROMOTION_SHORT`와 `SALON_EVENT_PROMOTION`이 모두 draft 생성 경로를 통과
+- `HAIR_STYLING_MOTION`, `PROMOTION_SHORT`, `SALON_EVENT_PROMOTION`이 모두 draft 생성 경로를 통과
 - 생성 전 script/storyboard가 보이고 편집 가능
 - 같은 프로젝트에서 반복 클릭해도 중복 render job을 만들지 않음
 - Studio asset 참조는 위험한 문자열과 존재하지 않는 asset을 거부
@@ -168,8 +170,8 @@ Docker는 제품 기능이 아니라 로컬 재현성을 위한 개발 도구로
 ## 9. 다음 구현 순서
 
 1. `/studio` 단계형 flow의 result placeholder를 실제 MP4 preview로 교체한다.
-2. `SELF_HOSTED_WAN` 로컬 서버에 Wan/CogVideoX/ComfyUI 명령을 연결해 샘플 MP4 생성 시간을 측정한다.
-3. 업로드/선택 UI를 asset_id 직접 입력 대신 파일·라이브러리 선택으로 교체한다.
+2. ~~`SELF_HOSTED_WAN` 로컬 서버에 Wan 명령을 연결해 샘플 MP4 생성 시간을 측정한다.~~ (완료 — `ml/wan_video.py` Diffusers 직접 통합, 실측은 README)
+3. 기존 asset 을 고르는 라이브러리 선택 UI 를 추가한다(파일 업로드는 구현됨).
 4. QR/share token은 만료·권한 정책 확정 뒤 추가한다.
 5. DB persistence와 Worker queue는 migration 승인 뒤 도입한다.
 6. Wan 2.2 같은 실제 scene video provider는 로컬 GPU/비용/라이선스 검토 뒤 운영 provider로 승격한다.

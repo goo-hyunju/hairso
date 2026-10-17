@@ -2,9 +2,11 @@
 
 > 정본 = 이 문서. `db/schema.sql` 은 전체 10테이블 + Studio 확장 5테이블 참고용 DDL. 실제 적용/마이그레이션은 사용자 관리(§4.19).
 >
-> **영상 MVP 적용 상태(2026-07-14):** `assets`·`generations`·`consents` **3테이블을 Supabase(project_ref=gtbdiiunozsbbdajmick)에 적용함.**
+> **영상 MVP 적용 상태(2026-07-14):** `assets`·`generations`·`consents` **3테이블을 Supabase 프로젝트에 적용함(project ref 는 `.env` 에만).**
 > 마이그레이션: `db/migrations/0001_video_mvp.sql`. 변경점: `consultation_id`/`customer_id` nullable+FK제거, `auth.users` 참조(`owner_id`/`created_by`/`account_id`), RLS 전체차단(정책 0개 = BE service_role 만 접근), Storage private bucket `hairview-assets`.
 > 나머지 7테이블(salons/salon_members/customers/consultations/style_references/style_recommendations/credit_transactions)은 **로드맵 유지**(미적용). 상세 설계·계획: `docs/superpowers/specs/2026-07-14-video-mvp-db-schema-design.md`, `docs/superpowers/plans/2026-07-14-video-mvp-db-schema.md`.
+>
+> **0002(`LOCAL_SD` provider CHECK 확장) 적용 여부: 미확인** — DB 의 `generations_provider_check` 제약에 `LOCAL_SD` 가 포함돼 있으면 적용된 것이다. 확인 전에는 적용됐다고 쓰지 않는다.
 >
 > **Studio MVP 확장 상태:** `db/migrations/0003_studio_mvp.sql` 추가. `storage_profiles`·`studio_projects`·`studio_project_assets`·`studio_drafts`·`studio_render_jobs` 설계만 생성했으며 실제 DB에는 적용하지 않았다.
 
@@ -26,7 +28,7 @@
 
 ## Studio 확장 테이블 (5)
 1. **storage_profiles** — 저장 위치 profile. backend, bucket, base_prefix, retention_days. secret 저장 금지.
-2. **studio_projects** — Studio 제품 프로젝트. template, category, brief, 최종 길이(15/30), 현재 render/output 참조.
+2. **studio_projects** — Studio 제품 프로젝트. template, category, brief, **요청 길이**(5/15/30 — 출력 길이 아님), 현재 render/output 참조.
 3. **studio_project_assets** — 프로젝트에 연결된 이미지/로고 asset 목록. role(IMAGE/LOGO).
 4. **studio_drafts** — script/storyboard 편집본 version. current partial unique.
 5. **studio_render_jobs** — project와 기존 generations job 연결. idempotency_key unique.
@@ -36,7 +38,7 @@
 - `external_job_id` + `ai_trace_id`(PixVerse 외부, 내부 `idempotency_key` 와 별도, §13).
 - `batch_id`(이미지 3종 묶음, 인덱스), `share_token`(부분 UNIQUE).
 - `estimated_cost_usd`/`actual_cost_usd`(numeric). `idempotency_key` **UNIQUE**(§4.10).
-- 제약: `UNIQUE(idempotency_key)`, `UNIQUE(provider, external_job_id)`, VIDEO 만 `duration ∈ {5,8}` CHECK.
+- 제약: `UNIQUE(idempotency_key)`, `UNIQUE(provider, external_job_id)`, VIDEO 만 `duration ∈ {5,8}` CHECK. ⚠️ 현재 BE 는 `duration_seconds/aspect_ratio/quality/seed` 를 generations 에 영속하지 않아(도메인 모델에 필드 없음, INSERT 미기록) 이 CHECK 는 실제로 작동하지 않는다. Studio 15/30초는 `studio_projects.duration_seconds`(0003) 에 둔다. 영속 시 CHECK 확장 필요(TASKS).
 
 ## 크레딧 5분류 매핑 (§4.12 / D11)
 | 개념 | 위치 |
@@ -49,7 +51,7 @@
 
 ## 설계 각주
 - `CreditTxType` = RESERVE/CHARGE/REFUND + **ADJUST**(수동 보정용, §4.12 5분류 외 운영 보정). 세 파일(enums.py·enums.json·schema.sql) 일관.
-- `assets.owner_id` 는 폴리모픽(`owner_type` + `owner_id`)이라 DB FK 미강제 — 참조무결성은 앱 레벨 보장(MVP 허용).
+- `assets.owner_id`: `db/schema.sql` 설계본은 폴리모픽(`owner_type` + `owner_id`)·FK 미강제. **적용본 0001 은 `auth.users(id)` FK 로 고정**(위 적용 상태 참조) — 두 파일의 의도적 차이.
 - `provider/generation_type/status/tx_type/plan/role/consent_type/asset_type` 은 text+CHECK. `error_code/aspect_ratio/quality` 는 CHECK 미부여(Pydantic 층에서 enum·Literal 검증) — 실 DB 도입(로드맵) 시 CHECK 추가 검토.
 - `VideoProviderName`(5)·`ImageProviderName`(3)는 `contract/enums.json`·FE Zod 에만 존재하는 **파생 subset**(BE Python enum 은 `ProviderName` 7개 보유). BE parity 테스트는 이 둘을 `ProviderName` subset 으로만 검증(FE 가 정본 대조).
 

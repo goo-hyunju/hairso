@@ -17,7 +17,7 @@ from app.domain.enums import ErrorCode
 
 app = FastAPI(
     title="Hairso Studio — apimgr",
-    version="0.3.1",
+    version="0.3.2",
     description="AI 쇼츠 제작 스튜디오 백엔드 — Mock-first, 로컬 Provider opt-in (MVP 스캐폴드)",
 )
 

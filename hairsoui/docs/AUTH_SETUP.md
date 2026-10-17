@@ -15,7 +15,7 @@ npm install @supabase/supabase-js
 `.env.example` 참고. publishable key 는 대시보드(Settings → API) 또는 관리자에게 요청.
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://gtbdiiunozsbbdajmick.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 

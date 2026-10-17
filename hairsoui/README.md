@@ -1,6 +1,6 @@
-# hairsoui — HairView AI Frontend (Next.js)
+# hairsoui — Hairso Studio Frontend (Next.js)
 
-AI 헤어스타일 상담·영상 시뮬레이션 프론트엔드 스캐폴드. 진입점 문서: [`CLAUDE.md`](./CLAUDE.md).
+AI 쇼츠 제작 스튜디오의 프론트엔드. 컨벤션: [`docs/conventions.md`](./docs/conventions.md) · 화면 흐름: [`docs/USER_FLOWS.md`](./docs/USER_FLOWS.md).
 
 ## 빠른 시작
 ```bash
@@ -8,9 +8,9 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-## 검증 (설치 시점 실측)
+## 검증 (2026-10-17 실행)
 - `npm run typecheck` — exit 0 (strict + noUncheckedIndexedAccess)
-- `npm run test` — parity·mapper·validation·studio schema
+- `npm run test` — **20 passed**(parity·mapper·validation·studio schema, 5파일)
 - `npm run build` — exit 0 (Next.js 15.5.20, static / 생성)
 - `npm run lint` — exit 0 (no-explicit-any: error)
 - 설치 버전: next 15.5.20 · react 19.2.7 · zod 4.4.3 · tailwind 4.3.2

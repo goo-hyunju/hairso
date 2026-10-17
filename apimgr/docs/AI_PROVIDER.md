@@ -27,8 +27,8 @@
 - 설정: `LOCAL_VIDEO_INFERENCE_URL`, `LOCAL_VIDEO_ENDPOINT_PATH=/video/i2v`, `LOCAL_VIDEO_TIMEOUT_SECONDS`, `SELF_HOSTED_WAN_VIDEO_MODEL`.
 - BE가 로컬 호스트 또는 compose 내부 `ml` 서비스만 호출한다. 외부 URL은 거부한다.
 - 고객 이미지가 필요하면 `asset_id`로 서버 내부 바이트를 읽어 multipart 파일로만 전달한다. asset URL, signed URL, storage key, Base64는 전달하지 않는다.
-- 로컬 서버는 `video/mp4` 바이트를 반환해야 한다. Worker는 MP4 컨테이너 서명을 확인한 뒤 `AssetService.register_generated_video()`로 저장한다.
-- `ml/serve.py`는 `LOCAL_VIDEO_RENDER_COMMAND`가 설정된 경우에만 Wan/CogVideoX/ComfyUI 같은 로컬 명령을 감싸 `/video/i2v` 응답을 만든다. 모델 다운로드와 GPU 실행은 사용자 승인/환경 준비 대상이다.
+- 결과 MP4 는 `GET /video/i2v/{job_id}/output` 에서 받는다(POST 가 동기 `video/mp4` 를 돌려주는 응답은 하위호환). Worker는 MP4 컨테이너 서명을 확인한 뒤 `AssetService.register_generated_video()`로 저장한다.
+- `ml/serve.py`의 `/video/i2v` 는 job 방식(202 + job_id → `GET /video/i2v/{job_id}` → `GET …/output`)이다. 기본은 프로세스 내 Wan 2.2 TI2V-5B Diffusers(`ml/wan_video.py`, 최초 로드 시 Hugging Face 자동 다운로드)이고, `LOCAL_VIDEO_RENDER_COMMAND` 는 외부 렌더 명령을 감싸는 대체 경로다. GPU 환경 준비는 사용자 몫이다.
 
 ## Studio Draft (`[구현]` — backend-only)
 - 기본: `DEFAULT_STUDIO_DRAFT_PROVIDER=MOCK`.
