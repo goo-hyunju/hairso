@@ -84,8 +84,10 @@ class ErrorCode(str, Enum):
 class StudioTemplateType(str, Enum):
     """Studio 공개 템플릿 타입. 제품 중심은 범용 쇼츠이고 Hair 는 카테고리 중 하나다."""
 
+    HAIR_STYLING_MOTION = "HAIR_STYLING_MOTION"
     PROMOTION_SHORT = "PROMOTION_SHORT"
     SALON_EVENT_PROMOTION = "SALON_EVENT_PROMOTION"
+    FREE_IMAGE_TO_VIDEO = "FREE_IMAGE_TO_VIDEO"
 
 
 class StudioCategory(str, Enum):
@@ -96,6 +98,8 @@ class StudioCategory(str, Enum):
     HEALTH = "HEALTH"
     PRODUCT = "PRODUCT"
     LOCAL_BUSINESS = "LOCAL_BUSINESS"
+    PET = "PET"
+    GENERAL = "GENERAL"
 
 
 class StudioTone(str, Enum):

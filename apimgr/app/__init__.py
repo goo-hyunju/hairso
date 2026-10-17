@@ -1,4 +1,4 @@
-"""apimgr — HairView AI 백엔드 (FastAPI).
+"""apimgr — Hairso Studio 백엔드 (FastAPI).
 
 계층 구조 (의존 방향은 단방향):
     api  ->  services  ->  repositories / providers  ->  external

@@ -2,17 +2,17 @@ import Link from "next/link";
 
 const studioCards = [
   {
-    title: "Promotion Short",
-    body: "혜택, 가격, 시술 포인트를 15초 세로 쇼츠 초안으로 정리합니다.",
-    meta: "Hair · 15s · Mock",
+    title: "이미지 영상",
+    body: "원하는 사진과 직접 쓴 프롬프트로 5~30초 세로 영상을 만듭니다.",
+    meta: "Prompt · 5~30s · Local I2V",
   },
   {
-    title: "Event Promotion",
-    body: "기간형 이벤트와 예약 CTA를 30초 스토리보드로 구성합니다.",
-    meta: "Local · 30s · Mock",
+    title: "헤어 스타일링",
+    body: "얼굴, 헤어 라인, 모발 색을 유지하며 자연스러운 움직임을 만듭니다.",
+    meta: "Hair · 5s · Local I2V",
   },
   {
-    title: "Local AI Server",
+    title: "로컬 AI 서버",
     body: "외부 프로그램은 Hairso API를 보고, Provider와 로컬 모델은 BE 뒤에 둡니다.",
     meta: "apimgr · backend-only",
   },
@@ -55,8 +55,8 @@ export default function HomePage() {
                     Hairso Studio
                   </h1>
                   <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--ui-content-secondary)] sm:text-lg">
-                    미용실 프로모션, 이벤트, 상담 콘텐츠를 script와 storyboard 중심의 9:16 쇼츠 작업으로
-                    만듭니다. 기본 경로는 Mock이라 유료 Provider 호출 없이 끝까지 확인할 수 있습니다.
+                    업로드한 이미지를 프롬프트 기반 9:16 영상으로 만들고, 필요하면 헤어 연출이나 매장 소식
+                    템플릿으로 빠르게 시작합니다. Provider 호출과 로컬 모델 실행은 BE 뒤에 둡니다.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
@@ -83,15 +83,15 @@ export default function HomePage() {
                       <span>Mock</span>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">첫 방문 클리닉</p>
+                      <p className="text-2xl font-bold">이미지 기반 영상</p>
                       <p className="mt-2 text-sm text-[var(--ui-content-inverse-muted)]">
-                        후킹 문구, 씬, CTA를 먼저 편집합니다.
+                        이미지와 움직임 설명을 기준으로 짧은 MP4를 만듭니다.
                       </p>
                     </div>
                     <div className="grid gap-2 text-[11px]">
-                      <span className="rounded bg-[var(--ui-border-inverse)] px-2 py-1">Scene 01 · Hook</span>
-                      <span className="rounded bg-[var(--ui-border-inverse)] px-2 py-1">Scene 02 · Offer</span>
-                      <span className="rounded bg-[var(--ui-border-inverse)] px-2 py-1">Scene 03 · Booking</span>
+                      <span className="rounded bg-[var(--ui-border-inverse)] px-2 py-1">Scene 01 · Reference</span>
+                      <span className="rounded bg-[var(--ui-border-inverse)] px-2 py-1">Motion · Prompt</span>
+                      <span className="rounded bg-[var(--ui-border-inverse)] px-2 py-1">Output · MP4</span>
                     </div>
                   </div>
                 </div>
@@ -114,7 +114,7 @@ export default function HomePage() {
               <p className="text-xs font-semibold uppercase tracking-widest text-[var(--ui-content-muted)]">
                 Pipeline
               </p>
-              <p className="mt-2 font-semibold">Template → Draft → Render → Result</p>
+              <p className="mt-2 font-semibold">템플릿 → 초안 → 렌더 → 결과</p>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-[var(--ui-content-muted)]">

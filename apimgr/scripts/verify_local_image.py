@@ -1,7 +1,7 @@
 """(1) 로컬 이미지 생성 end-to-end 검증 — DB·계약 미변경, 자격증명 불필요.
 
 경로: 얼굴 바이트를 LocalDiskAssetStore 에 저장 → LocalImageProvider.submit → ml 추론 서비스 호출
-      → 결과를 같은 저장소(rengoo/models)에 저장 → get_status SUCCEEDED → 결과 PNG 확인.
+      → 결과를 서버와 같은 에셋 루트(ASSET_LOCAL_ROOT, 미설정 시 config 기본값)에 저장 → get_status SUCCEEDED → 결과 PNG 확인.
 
 전제: ml/serve.py 추론 서비스가 LOCAL_INFERENCE_URL(기본 127.0.0.1:8188)에서 실행 중.
 실행: apimgr 디렉터리에서  .venv/Scripts/python scripts/verify_local_image.py
@@ -18,11 +18,12 @@ from pathlib import Path
 # apimgr 루트를 import 경로에 추가(스크립트 단독 실행 대비).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.providers.image_generation.base import ImageGenerationInput, ImageVariant  # noqa: E402
-from app.providers.image_generation.local import LocalImageProvider  # noqa: E402
-from app.providers.storage.local_disk import LocalDiskAssetStore  # noqa: E402
+from app.core.config import get_settings
+from app.providers.image_generation.base import ImageGenerationInput, ImageVariant
+from app.providers.image_generation.local import LocalImageProvider
+from app.providers.storage.local_disk import LocalDiskAssetStore
 
-ASSET_ROOT = os.environ.get("ASSET_LOCAL_ROOT") or r"C:\Users\zunxin\Desktop\rengoo\models"
+ASSET_ROOT = get_settings().asset_local_root
 INFER_URL = os.environ.get("LOCAL_INFERENCE_URL", "http://127.0.0.1:8188")
 FACE_SRC = Path(__file__).resolve().parent.parent.parent / "ml" / "test_face.jpg"
 

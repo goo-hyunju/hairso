@@ -16,9 +16,9 @@ from app.api.v1 import assets, consultations, generations, health, studio, style
 from app.domain.enums import ErrorCode
 
 app = FastAPI(
-    title="HairView AI — apimgr",
-    version="0.1.0",
-    description="AI 헤어스타일 상담 및 영상 시뮬레이션 백엔드 (스캐폴드)",
+    title="Hairso Studio — apimgr",
+    version="0.3.0",
+    description="AI 쇼츠 제작 스튜디오 백엔드 — Mock-first, 로컬 Provider opt-in (MVP 스캐폴드)",
 )
 
 # HTTP status -> 내부 오류코드 기본 매핑.

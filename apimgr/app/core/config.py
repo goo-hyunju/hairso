@@ -7,11 +7,23 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
+
+_ENV_LOADED = False
 
 
 def _get(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
+
+
+def _default_asset_local_root() -> str:
+    """ASSET_LOCAL_ROOT 미설정 시 기본값 — 저장소 상위 디렉터리의 models/ (repo 밖, §4.13).
+
+    core/config.py 기준 parents[4] = 저장소 상위. 로컬 에셋 루트 기본값의 단일 정의처.
+    """
+    return str(Path(__file__).resolve().parents[4] / "models")
 
 
 def _get_int(name: str, default: int) -> int:
@@ -22,6 +34,30 @@ def _get_int(name: str, default: int) -> int:
         return int(value)
     except ValueError:
         return default
+
+
+def _load_local_env_once() -> None:
+    global _ENV_LOADED
+    if _ENV_LOADED:
+        return
+    _ENV_LOADED = True
+    if os.environ.get("APP_LOAD_DOTENV") == "0" or "pytest" in sys.modules:
+        return
+    env_path = Path(__file__).resolve().parents[2] / ".env"
+    if not env_path.is_file():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        os.environ[key] = value
 
 
 @dataclass(frozen=True)
@@ -65,7 +101,7 @@ class Settings:
         default_factory=lambda: _get("LOCAL_VIDEO_ENDPOINT_PATH", "/video/i2v")
     )
     local_video_timeout_seconds: int = field(
-        default_factory=lambda: _get_int("LOCAL_VIDEO_TIMEOUT_SECONDS", 900)
+        default_factory=lambda: _get_int("LOCAL_VIDEO_TIMEOUT_SECONDS", 3600)
     )
     self_hosted_wan_video_model: str = field(
         default_factory=lambda: _get("SELF_HOSTED_WAN_VIDEO_MODEL")
@@ -78,7 +114,9 @@ class Settings:
     # 에셋 저장소 — LOCAL_DISK(기본, 자격증명 불필요) 또는 SUPABASE(service_role/secret 키 필요).
     # 로컬 디스크 루트: 고객 얼굴/결과가 저장되므로 저장소 밖 경로 사용(§4.13 — repo 밖).
     asset_store_backend: str = field(default_factory=lambda: _get("ASSET_STORE_BACKEND", "LOCAL_DISK"))
-    asset_local_root: str = field(default_factory=lambda: _get("ASSET_LOCAL_ROOT", ""))
+    asset_local_root: str = field(
+        default_factory=lambda: _get("ASSET_LOCAL_ROOT", "") or _default_asset_local_root()
+    )
 
     # Supabase Storage (ASSET_STORE_BACKEND=SUPABASE 일 때 서버측 업로드용).
     # secret 키(sb_secret_... = service_role 역할)는 로그 출력 금지(§0.14). 실값은 .env 만.
@@ -105,4 +143,5 @@ class Settings:
 
 def get_settings() -> Settings:
     """설정 인스턴스를 만든다(호출 시점의 환경변수 스냅샷)."""
+    _load_local_env_once()
     return Settings()

@@ -6,15 +6,15 @@ import unittest
 # 데모 Mock 전진 간격을 0으로 두어 background task 가 테스트를 지연시키지 않게 한다.
 os.environ.setdefault("MOCK_ADVANCE_INTERVAL_SEC", "0")
 
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-import main  # noqa: E402
-from app.api.v1.generations import create_image_generation, create_video_generation  # noqa: E402
-from app.core.security import compute_hmac_sha256  # noqa: E402
-from app.repositories.generation_repository import InMemoryGenerationRepository  # noqa: E402
-from app.schemas.generation import ImageGenerationRequest, VideoGenerationRequest  # noqa: E402
-from app.services.generation_service import GenerationService  # noqa: E402
-from app.services.webhook_service import build_signed_message  # noqa: E402
+import main
+from app.api.v1.generations import create_image_generation, create_video_generation
+from app.core.security import compute_hmac_sha256
+from app.repositories.generation_repository import InMemoryGenerationRepository
+from app.schemas.generation import ImageGenerationRequest, VideoGenerationRequest
+from app.services.generation_service import GenerationService
+from app.services.webhook_service import build_signed_message
 
 _PNG = (
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
@@ -144,8 +144,8 @@ class TestGenerationRoutes(unittest.IsolatedAsyncioTestCase):
             idempotency_key="route-dup-video",
         )
 
-        first = await create_video_generation(request, background, service, None)
-        second = await create_video_generation(request, background, service, None)
+        first = await create_video_generation(request, background, service, object(), None)
+        second = await create_video_generation(request, background, service, object(), None)
 
         self.assertEqual(first.generation_id, second.generation_id)
         self.assertEqual(len(background.tasks), 1)

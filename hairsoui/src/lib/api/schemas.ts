@@ -53,7 +53,12 @@ export type ImageProviderName = z.infer<typeof imageProviderNameSchema>;
 // 오류코드도 enum 으로 강제(status 응답 error_code parity — #13).
 export const apiErrorCodeSchema = z.enum(API_ERROR_CODES);
 
-export const studioTemplateTypeSchema = z.enum(["PROMOTION_SHORT", "SALON_EVENT_PROMOTION"]);
+export const studioTemplateTypeSchema = z.enum([
+  "HAIR_STYLING_MOTION",
+  "PROMOTION_SHORT",
+  "SALON_EVENT_PROMOTION",
+  "FREE_IMAGE_TO_VIDEO",
+]);
 export type StudioTemplateType = z.infer<typeof studioTemplateTypeSchema>;
 
 export const studioCategorySchema = z.enum([
@@ -62,6 +67,8 @@ export const studioCategorySchema = z.enum([
   "HEALTH",
   "PRODUCT",
   "LOCAL_BUSINESS",
+  "PET",
+  "GENERAL",
 ]);
 export type StudioCategory = z.infer<typeof studioCategorySchema>;
 
@@ -143,7 +150,7 @@ export const studioProjectResponseSchema = z.object({
   title: z.string().min(1),
   offer_text: z.string().min(1),
   cta_text: z.string().min(1),
-  duration_seconds: z.union([z.literal(15), z.literal(30)]),
+  duration_seconds: z.union([z.literal(5), z.literal(15), z.literal(30)]),
   target_audience: z.string().nullable().optional(),
   tone: studioToneSchema,
   asset_ids: z.array(z.string()),

@@ -13,7 +13,7 @@ try:
     from cryptography.hazmat.primitives.asymmetric import ec
 
     _HAS_CRYPTO = True
-except Exception:  # pragma: no cover - 환경에 crypto 없을 때
+except ImportError:  # pragma: no cover - 환경에 crypto 없을 때
     _HAS_CRYPTO = False
 
 from app.api.auth import decode_supabase_jwt

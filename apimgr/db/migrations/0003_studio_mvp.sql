@@ -6,7 +6,7 @@
 --    실제 적용 전 기존 0001/0002 적용 상태와 constraint drift 를 확인해야 한다.
 --
 -- 설계:
---   - Studio 최종 길이(15/30초)는 studio_projects.duration_seconds 에 저장한다.
+--   - Studio 최종 길이(5/15/30초)는 studio_projects.duration_seconds 에 저장한다.
 --   - 기존 generations.duration_seconds(5/8초)는 provider scene clip 계약으로 유지한다.
 --   - signed URL, 원본 storage key, provider raw payload 는 API 응답에 노출하지 않는다.
 --   - storage_profiles 는 비밀 없는 저장 위치/profile 메타만 저장한다. secret 은 env/secret manager.
@@ -36,17 +36,18 @@ ON CONFLICT (name) DO NOTHING;
 CREATE TABLE IF NOT EXISTS public.studio_projects (
     id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     template_type        text NOT NULL
-                         CHECK (template_type IN ('PROMOTION_SHORT', 'SALON_EVENT_PROMOTION')),
+                         CHECK (template_type IN ('HAIR_STYLING_MOTION', 'PROMOTION_SHORT',
+                                                  'SALON_EVENT_PROMOTION', 'FREE_IMAGE_TO_VIDEO')),
     category             text NOT NULL DEFAULT 'HAIR'
                          CHECK (category IN ('HAIR', 'BEAUTY', 'HEALTH', 'PRODUCT',
-                                             'LOCAL_BUSINESS')),
+                                             'LOCAL_BUSINESS', 'PET', 'GENERAL')),
     status               text NOT NULL DEFAULT 'DRAFTING'
                          CHECK (status IN ('DRAFTING', 'DRAFT_READY', 'RENDERING',
                                            'SUCCEEDED', 'FAILED')),
     title                text NOT NULL,
     offer_text           text NOT NULL,
     cta_text             text NOT NULL,
-    duration_seconds     int NOT NULL CHECK (duration_seconds IN (15, 30)),
+    duration_seconds     int NOT NULL CHECK (duration_seconds IN (5, 15, 30)),
     target_audience      text,
     tone                 text NOT NULL DEFAULT 'FRIENDLY'
                          CHECK (tone IN ('CALM', 'TRENDY', 'PREMIUM', 'FRIENDLY')),

@@ -1,6 +1,6 @@
 """Studio 도메인 모델 — 제품 레이어(project/draft/render)를 생성 job 과 분리한다.
 
-Studio 최종 영상 길이(15/30초)는 여기 보관하고, low-level provider clip 생성 계약(5/8초)은
+Studio 최종 영상 길이(5/15/30초)는 여기 보관하고, low-level provider clip 생성 계약(5/8초)은
 기존 GenerationService 에 그대로 둔다.
 """
 

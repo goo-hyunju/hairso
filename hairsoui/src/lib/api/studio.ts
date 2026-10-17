@@ -21,7 +21,7 @@ export interface CreateStudioProjectBody {
   title: string;
   offer_text: string;
   cta_text: string;
-  duration_seconds: 15 | 30;
+  duration_seconds: 5 | 15 | 30;
   target_audience?: string | null;
   tone: StudioTone;
   asset_ids: string[];
@@ -92,4 +92,8 @@ export async function renderStudioProject(
     schema: studioRenderResponseSchema,
     signal,
   });
+}
+
+export function getStudioProjectDownloadPath(projectId: string): string {
+  return `/api/v1/studio/projects/${encodeURIComponent(projectId)}/download`;
 }

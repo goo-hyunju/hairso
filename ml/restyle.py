@@ -13,6 +13,7 @@ import torch
 from diffusers import AutoPipelineForInpainting
 from PIL import Image
 
+import hair_mask as hair_mask_mod
 from hair_mask import hair_mask
 
 INPAINT_MODEL = os.environ.get("INPAINT_MODEL", "stable-diffusion-v1-5/stable-diffusion-inpainting")
@@ -27,6 +28,11 @@ class HairRestyler:
         self._pipe = self._pipe.to("cuda" if torch.cuda.is_available() else "cpu")
         self._pipe.enable_attention_slicing()  # 8GB VRAM 여유
         self._pipe.set_progress_bar_config(disable=True)
+
+    def to_device(self, device: str) -> None:
+        """inpaint 파이프라인과 face-parsing 모델을 함께 이동 — 영상 생성과 8GB VRAM 을 나눠 쓰기 위한 스왑."""
+        self._pipe = self._pipe.to(device)
+        hair_mask_mod.set_device(device)
 
     def restyle(
         self,

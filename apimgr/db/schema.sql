@@ -3,7 +3,7 @@
 --
 -- ⚠️ 실행 금지 · Alembic 마이그레이션 아님 · 실 DB 변경 아님.
 --    이 파일은 설계 산출물(참고용)이다. 실제 스키마 적용/마이그레이션은
---    사용자가 직접 관리한다(루트 CLAUDE.md §0.3 / §4.19). 정본 설명은 docs/DB_SCHEMA.md.
+--    사용자가 직접 관리한다(프로젝트 규칙 §0.3 / §4.19). 정본 설명은 docs/DB_SCHEMA.md.
 --
 -- 규칙 반영:
 --   - 모든 시각은 timestamptz (ISO8601+TZ, §5.2)
@@ -241,17 +241,18 @@ CREATE TABLE storage_profiles (
 CREATE TABLE studio_projects (
     id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     template_type        text NOT NULL
-                         CHECK (template_type IN ('PROMOTION_SHORT', 'SALON_EVENT_PROMOTION')),
+                         CHECK (template_type IN ('HAIR_STYLING_MOTION', 'PROMOTION_SHORT',
+                                                  'SALON_EVENT_PROMOTION', 'FREE_IMAGE_TO_VIDEO')),
     category             text NOT NULL DEFAULT 'HAIR'
                          CHECK (category IN ('HAIR', 'BEAUTY', 'HEALTH', 'PRODUCT',
-                                             'LOCAL_BUSINESS')),
+                                             'LOCAL_BUSINESS', 'PET', 'GENERAL')),
     status               text NOT NULL DEFAULT 'DRAFTING'
                          CHECK (status IN ('DRAFTING', 'DRAFT_READY', 'RENDERING',
                                            'SUCCEEDED', 'FAILED')),
     title                text NOT NULL,
     offer_text           text NOT NULL,
     cta_text             text NOT NULL,
-    duration_seconds     int NOT NULL CHECK (duration_seconds IN (15, 30)),
+    duration_seconds     int NOT NULL CHECK (duration_seconds IN (5, 15, 30)),
     target_audience      text,
     tone                 text NOT NULL DEFAULT 'FRIENDLY'
                          CHECK (tone IN ('CALM', 'TRENDY', 'PREMIUM', 'FRIENDLY')),

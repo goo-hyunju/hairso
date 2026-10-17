@@ -186,6 +186,21 @@ class AssetService:
         except FileNotFoundError:
             return None
 
+    def get_studio_output_bytes(self, asset_id: str, project_id: str) -> tuple[bytes, str] | None:
+        """Studio 결과 다운로드용 바이트 조회.
+
+        asset_id 단독 공개 대신 Studio project 와 output_asset 연결을 확인한 뒤 내려준다.
+        """
+        asset = self._repo.get(asset_id)
+        if asset is None or asset.status != "ACTIVE":
+            return None
+        if asset.asset_type != "GENERATED_VIDEO" or asset.consultation_id != project_id:
+            raise AssetAccessDenied()
+        try:
+            return self._store.load(asset.storage_key), asset.mime_type
+        except FileNotFoundError:
+            return None
+
     def assert_reference_allowed(
         self,
         asset_id: str,

@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.domain.enums import StudioTemplateType
 from app.domain.studio import StudioDraft, StudioScene, StudioScript
 from app.providers.studio_draft.base import (
     StudioDraftInput,
@@ -56,7 +57,8 @@ class OllamaStudioDraftProvider(StudioDraftProvider):
         raw = body.get("response")
         if not isinstance(raw, str):
             raise StudioDraftProviderError("ollama draft response missing content")
-        return _parse_draft(raw, data.duration_seconds)
+        expected_duration_seconds = 5 if _uses_single_i2v_scene(data.template_type) else data.duration_seconds
+        return _parse_draft(raw, expected_duration_seconds)
 
 
 def _system_prompt() -> str:
@@ -73,7 +75,16 @@ def _system_prompt() -> str:
 
 def _user_prompt(data: StudioDraftInput) -> str:
     _assert_input_safe(data)
-    scene_hint = "3 scenes" if data.duration_seconds == 15 else "5 scenes"
+    is_single_i2v = _uses_single_i2v_scene(data.template_type)
+    if is_single_i2v or data.duration_seconds == 5:
+        scene_hint = "1 scene"
+    elif data.duration_seconds == 15:
+        scene_hint = "3 scenes"
+    else:
+        scene_hint = "5 scenes"
+    storyboard_duration = 5 if is_single_i2v else data.duration_seconds
+    cta_label = "short Korean caption or end cue" if is_single_i2v else "Korean call to action"
+    template_rules = _template_rules(data.template_type)
     disclaimer = data.disclaimer or "none"
     audience = data.target_audience or "국내 시청자"
     return f"""
@@ -83,7 +94,7 @@ Create a Studio draft JSON object with this exact shape:
   "script": {{
     "hook": "Korean hook for the first 3 seconds",
     "narration": ["1 to 6 Korean narration lines"],
-    "cta": "Korean call to action"
+    "cta": "{cta_label}"
   }},
   "storyboard": [
     {{
@@ -96,11 +107,12 @@ Create a Studio draft JSON object with this exact shape:
 }}
 
 Rules:
-- Total storyboard duration must equal {data.duration_seconds} seconds.
+- Total storyboard duration must equal {storyboard_duration} seconds.
 - Use {scene_hint}. Each scene duration must be 5 to 8 seconds.
 - Captions must be short Korean text for mobile vertical video.
 - visual_prompt must be English and suitable for image-to-video generation.
 - Mention uploaded media only as "uploaded reference images"; do not invent URLs.
+{template_rules}
 
 Project:
 - template_type: {data.template_type.value}
@@ -114,6 +126,28 @@ Project:
 - has_logo: {data.has_logo}
 - disclaimer: {disclaimer}
 """.strip()
+
+
+def _uses_single_i2v_scene(template_type: StudioTemplateType) -> bool:
+    return template_type in {
+        StudioTemplateType.HAIR_STYLING_MOTION,
+        StudioTemplateType.FREE_IMAGE_TO_VIDEO,
+    }
+
+
+def _template_rules(template_type: StudioTemplateType) -> str:
+    if template_type is StudioTemplateType.HAIR_STYLING_MOTION:
+        return (
+            "- For HAIR_STYLING_MOTION, write only natural hair styling direction, motion, mood, and preservation notes.\n"
+            "- Use the offer_text as the desired hair styling and movement direction.\n"
+            "- Preserve face identity, hairline, hair color, and the uploaded style unless explicitly requested."
+        )
+    if template_type is StudioTemplateType.FREE_IMAGE_TO_VIDEO:
+        return (
+            "- For FREE_IMAGE_TO_VIDEO, use offer_text as the requested subject motion.\n"
+            "- Preserve the uploaded subject identity, shape, color, and composition."
+        )
+    return "- For notice templates, summarize the scene direction and CTA clearly without unsupported claims."
 
 
 def _assert_input_safe(data: StudioDraftInput) -> None:

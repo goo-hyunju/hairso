@@ -32,6 +32,14 @@ def _load() -> AutoModelForSemanticSegmentation:
     return _model
 
 
+def set_device(device: str) -> None:
+    """분할 모델을 지정 장치로 이동(미로드면 다음 로드 장치만 변경) — VRAM 스왑용."""
+    global _DEVICE
+    _DEVICE = device
+    if _model is not None:
+        _model.to(device)
+
+
 def _hair_class_id(model: AutoModelForSemanticSegmentation) -> int:
     """config.id2label 에서 'hair' 클래스 id 를 찾는다(순서 하드코딩 회피)."""
     for idx, label in model.config.id2label.items():

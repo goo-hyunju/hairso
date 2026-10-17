@@ -6,7 +6,14 @@ from dataclasses import replace
 from typing import Any
 from unittest.mock import patch
 
-from app.domain.enums import StudioCategory, StudioProjectStatus, StudioTemplateType, StudioTone
+from app.domain.enums import (
+    ProviderJobStatus,
+    ProviderName,
+    StudioCategory,
+    StudioProjectStatus,
+    StudioTemplateType,
+    StudioTone,
+)
 from app.domain.models import Asset
 from app.domain.studio import StudioDraft, StudioProject, StudioScene, StudioScript
 from app.providers.studio_draft.base import (
@@ -16,14 +23,24 @@ from app.providers.studio_draft.base import (
 )
 from app.providers.studio_draft.mock import MockStudioDraftProvider
 from app.providers.studio_draft.ollama import OllamaStudioDraftProvider
-from app.providers.video_generation.base import VideoGenerationInput
+from app.providers.video_generation.base import (
+    VideoGenerationInput,
+    VideoProvider,
+    VideoStatusResult,
+    VideoSubmissionResult,
+)
 from app.providers.video_generation.mock import MockVideoProvider
 from app.repositories.asset_repository import InMemoryAssetRepository
 from app.repositories.generation_repository import InMemoryGenerationRepository
 from app.repositories.studio_repository import InMemoryStudioRepository
 from app.services.asset_service import AssetService
 from app.services.generation_service import GenerationService
-from app.services.studio_service import StudioProjectForbidden, StudioService, StudioUnsafeText
+from app.services.studio_service import (
+    StudioProjectForbidden,
+    StudioRenderAssetRequired,
+    StudioService,
+    StudioUnsafeText,
+)
 
 
 def _input(duration_seconds: int = 30) -> StudioDraftInput:
@@ -31,7 +48,7 @@ def _input(duration_seconds: int = 30) -> StudioDraftInput:
         template_type=StudioTemplateType.PROMOTION_SHORT,
         category=StudioCategory.HAIR,
         title="여름 신상 레이어드컷",
-        offer_text="이번 주 예약 시 10% 할인",
+        offer_text="이번 주 가능한 스타일 상담 안내",
         cta_text="프로필 링크에서 지금 예약하세요",
         duration_seconds=duration_seconds,
         target_audience="국내 미용실 고객",
@@ -73,7 +90,7 @@ class _Client:
                 "hook": "지금 이 컷, 왜 다들 예약할까요?",
                 "narration": [
                     "이번 여름 신상, 얼굴형 살리는 레이어드컷.",
-                    "이번 주 예약하면 시술 10% 할인.",
+                    "이번 주 가능한 스타일 상담을 안내합니다.",
                 ],
                 "cta": "프로필 링크에서 지금 예약하세요",
             },
@@ -105,7 +122,7 @@ class _Client:
                 {
                     "scene_index": 5,
                     "duration_seconds": 5,
-                    "caption": "이번 주 예약 시 10% 할인",
+                    "caption": "스타일 상담 안내",
                     "visual_prompt": "Clear call-to-action end card, typography-safe, 9:16",
                 },
             ],
@@ -132,7 +149,7 @@ class _UnsafeOutputClient(_Client):
                 {
                     "scene_index": 2,
                     "duration_seconds": 5,
-                    "caption": "혜택",
+                    "caption": "안내",
                     "visual_prompt": "Photorealistic salon scene, 9:16",
                 },
                 {
@@ -195,12 +212,80 @@ class _RecordingVideoProvider(MockVideoProvider):
         return await super().submit(data)
 
 
+class _RecordingRealVideoProvider(VideoProvider):
+    def __init__(self) -> None:
+        self.last_input: VideoGenerationInput | None = None
+
+    async def submit(self, data: VideoGenerationInput) -> VideoSubmissionResult:
+        self.last_input = data
+        return VideoSubmissionResult(
+            provider=ProviderName.SELF_HOSTED_WAN,
+            external_job_id=f"real-video-{data.idempotency_key}",
+        )
+
+    async def get_status(self, external_job_id: str) -> VideoStatusResult:
+        return VideoStatusResult(status=ProviderJobStatus.PROCESSING)
+
+
 class TestStudioDraftProvider(unittest.TestCase):
+    def test_mock_5_second_draft_uses_one_scene(self):
+        draft = MockStudioDraftProvider().create_draft(_input(5))
+        self.assertEqual([scene.duration_seconds for scene in draft.storyboard], [5])
+        self.assertEqual(sum(scene.duration_seconds for scene in draft.storyboard), 5)
+        self.assertTrue(all("9:16" in scene.visual_prompt for scene in draft.storyboard))
+
     def test_mock_30_second_draft_uses_clip_safe_durations(self):
         draft = MockStudioDraftProvider().create_draft(_input(30))
         self.assertEqual([scene.duration_seconds for scene in draft.storyboard], [5, 6, 6, 8, 5])
         self.assertEqual(sum(scene.duration_seconds for scene in draft.storyboard), 30)
         self.assertTrue(all("9:16" in scene.visual_prompt for scene in draft.storyboard))
+
+    def test_mock_free_i2v_draft_uses_general_motion_prompt(self):
+        draft = MockStudioDraftProvider().create_draft(
+            StudioDraftInput(
+                template_type=StudioTemplateType.FREE_IMAGE_TO_VIDEO,
+                category=StudioCategory.PET,
+                title="고양이가 밥 먹는 장면",
+                offer_text="A cute cat eating food from a small bowl",
+                cta_text="Cozy pet moment",
+                duration_seconds=15,
+                target_audience="반려동물 일상 영상",
+                tone=StudioTone.FRIENDLY,
+                asset_count=1,
+                has_logo=False,
+                disclaimer="Keep the cat identity and markings consistent.",
+            )
+        )
+
+        self.assertEqual(draft.script.hook, "고양이가 밥 먹는 장면")
+        self.assertEqual(len(draft.storyboard), 1)
+        self.assertEqual(draft.storyboard[0].duration_seconds, 5)
+        self.assertIn("cat", draft.storyboard[0].visual_prompt)
+        self.assertIn("pet", draft.storyboard[0].visual_prompt.lower())
+
+    def test_mock_hair_styling_draft_uses_natural_motion_prompt(self):
+        draft = MockStudioDraftProvider().create_draft(
+            StudioDraftInput(
+                template_type=StudioTemplateType.HAIR_STYLING_MOTION,
+                category=StudioCategory.HAIR,
+                title="자연스러운 헤어 스타일링",
+                offer_text="부드러운 고개 움직임과 자연스러운 모발 결 흔들림",
+                cta_text="Natural styling look",
+                duration_seconds=15,
+                target_audience="자연스러운 헤어 연출",
+                tone=StudioTone.CALM,
+                asset_count=1,
+                has_logo=False,
+                disclaimer="얼굴, 헤어 라인, 기존 모발 색은 유지합니다.",
+            )
+        )
+
+        self.assertEqual(draft.script.hook, "자연스러운 헤어 스타일링")
+        self.assertEqual(len(draft.storyboard), 1)
+        self.assertEqual(draft.storyboard[0].duration_seconds, 5)
+        self.assertIn("hair styling", draft.storyboard[0].visual_prompt.lower())
+        self.assertIn("face identity", draft.storyboard[0].visual_prompt.lower())
+        self.assertNotIn("coupon", draft.storyboard[0].visual_prompt.lower())
 
     def test_ollama_provider_parses_structured_response_without_media_payload(self):
         with patch("app.providers.studio_draft.ollama.httpx.Client", _Client):
@@ -230,12 +315,14 @@ class TestStudioDraftProvider(unittest.TestCase):
             ).create_draft(replace(_input(30), offer_text="결과 https://example.com/signed.png"))
 
     def test_ollama_provider_rejects_sensitive_output_text(self):
-        with patch("app.providers.studio_draft.ollama.httpx.Client", _UnsafeOutputClient):
-            with self.assertRaises(StudioDraftProviderError):
-                OllamaStudioDraftProvider(
-                    "http://127.0.0.1:11434",
-                    "test-local-model",
-                ).create_draft(_input(15))
+        with (
+            patch("app.providers.studio_draft.ollama.httpx.Client", _UnsafeOutputClient),
+            self.assertRaises(StudioDraftProviderError),
+        ):
+            OllamaStudioDraftProvider(
+                "http://127.0.0.1:11434",
+                "test-local-model",
+            ).create_draft(_input(15))
 
     def test_studio_service_falls_back_to_mock_draft_when_provider_fails(self):
         svc = StudioService(
@@ -248,8 +335,8 @@ class TestStudioDraftProvider(unittest.TestCase):
             project_id="studio-fallback-1",
             template_type=StudioTemplateType.PROMOTION_SHORT,
             category=StudioCategory.HAIR,
-            title="봄맞이 클리닉 이벤트",
-            offer_text="첫 방문 20% 할인",
+            title="봄맞이 헤어 클리닉 안내",
+            offer_text="손상 모발 집중 케어 안내",
             cta_text="오늘 예약 문의하기",
             duration_seconds=15,
             target_audience="신규 고객",
@@ -278,8 +365,8 @@ class TestStudioDraftProvider(unittest.TestCase):
             project_id="studio-unsafe-provider-1",
             template_type=StudioTemplateType.PROMOTION_SHORT,
             category=StudioCategory.HAIR,
-            title="봄맞이 클리닉 이벤트",
-            offer_text="첫 방문 20% 할인",
+            title="봄맞이 헤어 클리닉 안내",
+            offer_text="손상 모발 집중 케어 안내",
             cta_text="오늘 예약 문의하기",
             duration_seconds=15,
             target_audience="신규 고객",
@@ -321,8 +408,8 @@ class TestStudioDraftProvider(unittest.TestCase):
                 project_id="studio-ownerless-1",
                 template_type=StudioTemplateType.PROMOTION_SHORT,
                 category=StudioCategory.HAIR,
-                title="봄맞이 클리닉 이벤트",
-                offer_text="첫 방문 20% 할인",
+                title="봄맞이 헤어 클리닉 안내",
+                offer_text="손상 모발 집중 케어 안내",
                 cta_text="오늘 예약 문의하기",
                 duration_seconds=15,
                 target_audience="신규 고객",
@@ -371,8 +458,8 @@ class TestStudioRenderContracts(unittest.IsolatedAsyncioTestCase):
             project_id="studio-render-no-asset-1",
             template_type=StudioTemplateType.PROMOTION_SHORT,
             category=StudioCategory.HAIR,
-            title="봄맞이 클리닉 이벤트",
-            offer_text="첫 방문 20% 할인",
+            title="봄맞이 헤어 클리닉 안내",
+            offer_text="손상 모발 집중 케어 안내",
             cta_text="오늘 예약 문의하기",
             duration_seconds=15,
             target_audience="신규 고객",
@@ -397,6 +484,126 @@ class TestStudioRenderContracts(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(generation.input_asset_id)
         self.assertIsNotNone(provider.last_input)
         self.assertIsNone(provider.last_input.image_asset_id)
+        self.assertEqual(provider.last_input.duration_seconds, 15)
+
+    async def test_free_i2v_render_prompt_uses_motion_description(self):
+        generation_service = GenerationService(InMemoryGenerationRepository())
+        svc = StudioService(
+            InMemoryStudioRepository(),
+            generation_service,
+            object(),
+            MockStudioDraftProvider(),
+        )
+        project = svc.create_project(
+            project_id="studio-render-free-i2v-1",
+            template_type=StudioTemplateType.FREE_IMAGE_TO_VIDEO,
+            category=StudioCategory.PET,
+            title="고양이가 밥 먹는 장면",
+            offer_text="A cute cat eating food from a small bowl",
+            cta_text="Cozy pet moment",
+            duration_seconds=15,
+            target_audience="반려동물 일상 영상",
+            tone=StudioTone.FRIENDLY,
+            asset_ids=[],
+            logo_asset_id=None,
+            disclaimer="Keep the cat identity and markings consistent.",
+            created_by=None,
+            storage_profile_name="local-dev",
+        )
+        svc.create_draft(project.id)
+
+        provider = _RecordingVideoProvider()
+        await svc.render_project(
+            project_id=project.id,
+            generation_id="44444444-4444-4444-8444-444444444444",
+            idempotency_key="studio-render-free-i2v",
+            provider=provider,
+            created_by=None,
+        )
+
+        self.assertIsNotNone(provider.last_input)
+        self.assertEqual(provider.last_input.duration_seconds, 15)
+        self.assertIn("[FREE_IMAGE_TO_VIDEO]", provider.last_input.prompt)
+        self.assertIn("A cute cat eating food from a small bowl", provider.last_input.prompt)
+
+    async def test_hair_styling_render_prompt_preserves_identity(self):
+        generation_service = GenerationService(InMemoryGenerationRepository())
+        svc = StudioService(
+            InMemoryStudioRepository(),
+            generation_service,
+            object(),
+            MockStudioDraftProvider(),
+        )
+        project = svc.create_project(
+            project_id="studio-render-hair-motion-1",
+            template_type=StudioTemplateType.HAIR_STYLING_MOTION,
+            category=StudioCategory.HAIR,
+            title="자연스러운 헤어 스타일링",
+            offer_text="부드러운 고개 움직임과 자연스러운 모발 결 흔들림",
+            cta_text="Natural styling look",
+            duration_seconds=15,
+            target_audience="자연스러운 헤어 연출",
+            tone=StudioTone.CALM,
+            asset_ids=[],
+            logo_asset_id=None,
+            disclaimer="얼굴, 헤어 라인, 기존 모발 색은 유지합니다.",
+            created_by=None,
+            storage_profile_name="local-dev",
+        )
+        svc.create_draft(project.id)
+
+        provider = _RecordingVideoProvider()
+        await svc.render_project(
+            project_id=project.id,
+            generation_id="55555555-5555-4555-8555-555555555555",
+            idempotency_key="studio-render-hair-motion",
+            provider=provider,
+            created_by=None,
+        )
+
+        self.assertIsNotNone(provider.last_input)
+        self.assertEqual(provider.last_input.duration_seconds, 15)
+        self.assertIn("[HAIR_STYLING_MOTION]", provider.last_input.prompt)
+        self.assertIn("Preserve face identity", provider.last_input.prompt)
+        self.assertIn("subtle hair movement", provider.last_input.prompt)
+        self.assertNotIn("coupon", provider.last_input.prompt.lower())
+
+    async def test_render_without_asset_rejected_for_real_video_provider(self):
+        generation_service = GenerationService(InMemoryGenerationRepository())
+        svc = StudioService(
+            InMemoryStudioRepository(),
+            generation_service,
+            object(),
+            MockStudioDraftProvider(),
+        )
+        project = svc.create_project(
+            project_id="studio-render-real-no-asset-1",
+            template_type=StudioTemplateType.PROMOTION_SHORT,
+            category=StudioCategory.HAIR,
+            title="봄맞이 헤어 클리닉 안내",
+            offer_text="손상 모발 집중 케어 안내",
+            cta_text="오늘 예약 문의하기",
+            duration_seconds=15,
+            target_audience="신규 고객",
+            tone=StudioTone.FRIENDLY,
+            asset_ids=[],
+            logo_asset_id=None,
+            disclaimer=None,
+            created_by=None,
+            storage_profile_name="local-dev",
+        )
+        svc.create_draft(project.id)
+
+        provider = _RecordingRealVideoProvider()
+        with self.assertRaises(StudioRenderAssetRequired):
+            await svc.render_project(
+                project_id=project.id,
+                generation_id="33333333-3333-4333-8333-333333333333",
+                idempotency_key="studio-render-real-no-asset",
+                provider=provider,
+                created_by=None,
+            )
+        self.assertIsNone(provider.last_input)
 
     async def test_render_revalidates_legacy_unsafe_draft(self):
         repo = InMemoryStudioRepository()
@@ -405,13 +612,13 @@ class TestStudioRenderContracts(unittest.IsolatedAsyncioTestCase):
                 id="studio-legacy-unsafe-render-1",
                 template_type=StudioTemplateType.PROMOTION_SHORT,
                 category=StudioCategory.HAIR,
-                title="봄맞이 클리닉 이벤트",
-                offer_text="첫 방문 20% 할인",
+                title="봄맞이 헤어 클리닉 안내",
+                offer_text="손상 모발 집중 케어 안내",
                 cta_text="오늘 예약 문의하기",
                 duration_seconds=15,
                 draft=StudioDraft(
                     script=StudioScript(
-                        hook="이번 주 혜택",
+                        hook="이번 주 안내",
                         narration=["상세 https://example.invalid/signed.png"],
                         cta="오늘 예약 문의하기",
                     ),

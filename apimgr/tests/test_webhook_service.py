@@ -84,7 +84,7 @@ class TestWebhookService(unittest.IsolatedAsyncioTestCase):
             provider_status=ProviderJobStatus.PROCESSING,
         )
         self.assertEqual(early, "")
-        self.assertNotIn(("MOCK", "reorder"), wh._processed_event_ids)  # noqa: SLF001
+        self.assertNotIn(("MOCK", "reorder"), wh._processed_event_ids)
         # 2) 같은 event_id 가 실제 job 으로 재전송 -> 정상 처리(무시되지 않음).
         later = wh.handle_status_event(
             secret=_SECRET, payload=payload, signature=sig,
@@ -98,12 +98,17 @@ class TestWebhookService(unittest.IsolatedAsyncioTestCase):
         _svc, wh, gen = await self._make()
         payload = b'{"job":"x"}'
         sig = _valid_sig(1000, payload)
-        kw = dict(
-            secret=_SECRET, payload=payload, signature=sig,
-            event_ts=1000, now_ts=1000, event_id="dup",
-            provider="MOCK", external_job_id=gen.external_job_id,
-            provider_status=ProviderJobStatus.PROCESSING,
-        )
+        kw = {
+            "secret": _SECRET,
+            "payload": payload,
+            "signature": sig,
+            "event_ts": 1000,
+            "now_ts": 1000,
+            "event_id": "dup",
+            "provider": "MOCK",
+            "external_job_id": gen.external_job_id,
+            "provider_status": ProviderJobStatus.PROCESSING,
+        }
         s1 = wh.handle_status_event(**kw)
         s2 = wh.handle_status_event(**kw)  # 동일 event_id -> 멱등
         self.assertEqual(s1, s2)

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import time
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
@@ -18,14 +19,16 @@ from app.services.webhook_service import WebhookService
 
 router = APIRouter(prefix="/api/v1", tags=["webhooks"])
 
+WebhookServiceDep = Annotated[WebhookService, Depends(get_webhook_service)]
+
 
 @router.post("/webhooks/pixverse", status_code=200)
 async def pixverse_webhook(
     request: Request,
+    service: WebhookServiceDep,
     x_signature: str = Header(default=""),
     x_timestamp: int = Header(default=0),
     x_event_id: str = Header(default=""),
-    service: WebhookService = Depends(get_webhook_service),
 ) -> dict[str, str]:
     """[스텁] PixVerse webhook. 서명 검증 후 상태 반영. 실 payload 스키마는 로드맵."""
     payload = await request.body()

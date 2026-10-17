@@ -24,10 +24,28 @@ from app.providers.studio_draft.base import (
 )
 from app.providers.studio_draft.mock import MockStudioDraftProvider
 from app.providers.studio_draft.safety import SensitiveTextError, assert_safe_draft_text
-from app.providers.video_generation.base import VideoGenerationInput, VideoProvider, VideoSourceImage
+from app.providers.video_generation.base import (
+    VideoGenerationInput,
+    VideoProvider,
+    VideoSourceImage,
+)
+from app.providers.video_generation.mock import MockVideoProvider
 from app.repositories.studio_repository import StudioRepository
 from app.services.asset_service import AssetService
 from app.services.generation_service import GenerationService
+
+# 모든 render 프롬프트에 공통 적용하는 제약(§6.1/§0.15 + 사용자 확정 목록). 템플릿마다 반복하지
+# 않고 여기 한 곳에서만 관리한다. 모델 이해도를 위해 영어로 기술한다(내용은 한국어 정책과 1:1).
+_COMMON_RENDER_CONSTRAINTS = (
+    "Constraints: do not depict or imitate any real person's face, name, likeness, or voice; "
+    "no celebrities, real public figures, brand logos, or copyrighted characters; "
+    "never show personal or sensitive information such as IDs, addresses, phone or account numbers; "
+    "no violent, sexual, hateful, illegal, or dangerous content; "
+    "do not invent on-screen text, captions, subtitles, logos, or watermarks; "
+    "keep fingers, faces, eyes, letters, and body proportions natural and undistorted; "
+    "use smooth camera movement and avoid abrupt scene changes; "
+    "keep the overall tone realistic and natural."
+)
 
 
 class StudioProjectNotFound(DomainError):
@@ -40,6 +58,11 @@ class StudioDraftRequired(DomainError):
     retryable = False
 
 
+class StudioRenderAssetRequired(DomainError):
+    error_code = ErrorCode.VALIDATION_ERROR
+    retryable = False
+
+
 class StudioProjectForbidden(DomainError):
     error_code = ErrorCode.FORBIDDEN
     retryable = False
@@ -47,6 +70,11 @@ class StudioProjectForbidden(DomainError):
 
 class StudioUnsafeText(DomainError):
     error_code = ErrorCode.VALIDATION_ERROR
+    retryable = False
+
+
+class StudioOutputNotReady(DomainError):
+    error_code = ErrorCode.NOT_FOUND
     retryable = False
 
 
@@ -165,16 +193,24 @@ class StudioService:
             if existing is not None:
                 return project, existing
 
+        render_asset_id = self._select_render_input_asset(project)
+        if render_asset_id is None and not isinstance(provider, MockVideoProvider):
+            raise StudioRenderAssetRequired("이미지 업로드 후 render 할 수 있습니다")
+
         input_data = VideoGenerationInput(
-            image_asset_id=self._select_render_input_asset(project),
+            image_asset_id=render_asset_id,
             prompt=self._build_render_prompt(project),
-            duration_seconds=5,
+            duration_seconds=project.duration_seconds,
             aspect_ratio="9:16",
-            quality="720p",
+            quality="480p",
             idempotency_key=idempotency_key,
             negative_prompt=None,
             seed=None,
-            source_image=self._select_render_source_image(project, created_by),
+            source_image=(
+                self._load_render_source_image(render_asset_id, created_by)
+                if render_asset_id is not None
+                else None
+            ),
         )
         gen = await self._generation_service.create_video_generation(
             generation_id=generation_id,
@@ -188,6 +224,15 @@ class StudioService:
         project.updated_at = _utcnow()
         project = self._repo.update(project)
         return project, gen
+
+    def get_output_bytes(self, project_id: str, user_id: str | None = None) -> tuple[bytes, str]:
+        project = self.get_project(project_id, user_id)
+        if project.output_asset_id is None:
+            raise StudioOutputNotReady("렌더 결과가 아직 준비되지 않았습니다")
+        result = self._asset_service.get_studio_output_bytes(project.output_asset_id, project.id)
+        if result is None:
+            raise StudioProjectNotFound("렌더 결과 파일을 찾을 수 없습니다")
+        return result
 
     def _refresh_render_status(self, project: StudioProject) -> StudioProject:
         if not project.render_generation_id:
@@ -290,8 +335,10 @@ class StudioService:
 
     def _draft_input(self, project: StudioProject) -> StudioDraftInput:
         if project.template_type not in {
+            StudioTemplateType.HAIR_STYLING_MOTION,
             StudioTemplateType.PROMOTION_SHORT,
             StudioTemplateType.SALON_EVENT_PROMOTION,
+            StudioTemplateType.FREE_IMAGE_TO_VIDEO,
         }:
             raise StudioDraftRequired("지원하지 않는 템플릿입니다")
         return StudioDraftInput(
@@ -311,11 +358,32 @@ class StudioService:
     def _build_render_prompt(self, project: StudioProject) -> str:
         if project.draft is None:
             raise StudioDraftRequired("초안 생성 후 render 할 수 있습니다")
+        if project.template_type is StudioTemplateType.HAIR_STYLING_MOTION:
+            visual_prompt = " / ".join(scene.visual_prompt for scene in project.draft.storyboard)
+            return (
+                "[HAIR_STYLING_MOTION] Animate the uploaded reference image as a natural hair styling video. "
+                f"Title: {project.title}. Styling direction: {project.offer_text}. "
+                f"Visual direction: {visual_prompt}. "
+                "Preserve face identity, hairline, hair color, and the existing hairstyle structure unless requested. "
+                "Use subtle hair movement, gentle camera motion, realistic salon lighting, no text artifacts, 9:16. "
+                + _COMMON_RENDER_CONSTRAINTS
+            )
+        if project.template_type is StudioTemplateType.FREE_IMAGE_TO_VIDEO:
+            visual_prompt = " / ".join(scene.visual_prompt for scene in project.draft.storyboard)
+            return (
+                "[FREE_IMAGE_TO_VIDEO] Animate the uploaded reference image into a short vertical video. "
+                f"Title: {project.title}. Requested motion: {project.offer_text}. "
+                f"Visual direction: {visual_prompt}. "
+                "Preserve the main subject identity, shape, color, and composition. "
+                "Use natural motion, realistic lighting, no text artifacts, 9:16. "
+                + _COMMON_RENDER_CONSTRAINTS
+            )
         captions = " / ".join(scene.caption for scene in project.draft.storyboard)
         narration = " ".join(project.draft.script.narration)
         return (
             f"[{project.template_type.value}] {project.draft.script.hook} "
-            f"{narration} CTA: {project.draft.script.cta}. Scenes: {captions}"
+            f"{narration} CTA: {project.draft.script.cta}. Scenes: {captions} "
+            + _COMMON_RENDER_CONSTRAINTS
         )
 
     def _select_render_input_asset(self, project: StudioProject) -> str | None:
@@ -325,12 +393,7 @@ class StudioService:
             return project.asset_ids[0]
         return None
 
-    def _select_render_source_image(
-        self, project: StudioProject, user_id: str | None
-    ) -> VideoSourceImage | None:
-        asset_id = self._select_render_input_asset(project)
-        if asset_id is None:
-            return None
+    def _load_render_source_image(self, asset_id: str, user_id: str | None) -> VideoSourceImage:
         data, content_type = self._asset_service.load_reference_bytes(
             asset_id,
             user_id,

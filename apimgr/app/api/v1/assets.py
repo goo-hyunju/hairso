@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 
@@ -15,12 +17,16 @@ from app.services.asset_service import AssetService
 
 router = APIRouter(prefix="/api/v1", tags=["assets"])
 
+AssetUploadFile = Annotated[UploadFile, File(...)]
+AssetServiceDep = Annotated[AssetService, Depends(get_asset_service)]
+OptionalUserDep = Annotated[str | None, Depends(get_optional_user)]
+
 
 @router.post("/assets", status_code=201, response_model=AssetUploadResponse)
 async def upload_asset(
-    file: UploadFile = File(...),
-    asset_service: AssetService = Depends(get_asset_service),
-    user_id: str | None = Depends(get_optional_user),
+    file: AssetUploadFile,
+    asset_service: AssetServiceDep,
+    user_id: OptionalUserDep,
 ) -> AssetUploadResponse:
     """얼굴 원본 업로드 → FACE_SOURCE 에셋. 실제 시그니처 재검증(§4.14)."""
     data = await file.read()
@@ -40,8 +46,8 @@ async def upload_asset(
 @router.get("/assets/{asset_id}/content")
 async def get_asset_content(
     asset_id: str,
-    asset_service: AssetService = Depends(get_asset_service),
-    user_id: str | None = Depends(get_optional_user),
+    asset_service: AssetServiceDep,
+    user_id: OptionalUserDep,
 ) -> Response:
     """에셋 바이트 다운로드(비공개 저장 → 이 API 경유). 없으면 404."""
     try:

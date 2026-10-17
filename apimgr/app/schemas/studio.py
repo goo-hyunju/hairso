@@ -27,12 +27,12 @@ StudioAssetId = Annotated[
 
 
 class StudioProjectCreateRequest(BaseModel):
-    template_type: StudioTemplateType = StudioTemplateType.PROMOTION_SHORT
+    template_type: StudioTemplateType = StudioTemplateType.HAIR_STYLING_MOTION
     category: StudioCategory = StudioCategory.HAIR
     title: str = Field(min_length=1, max_length=120)
     offer_text: str = Field(min_length=1, max_length=500)
     cta_text: str = Field(min_length=1, max_length=120)
-    duration_seconds: Literal[15, 30] = 15
+    duration_seconds: Literal[5, 15, 30] = 5
     target_audience: str | None = Field(default=None, max_length=120)
     tone: StudioTone = StudioTone.FRIENDLY
     asset_ids: list[StudioAssetId] = Field(default_factory=list, max_length=6)

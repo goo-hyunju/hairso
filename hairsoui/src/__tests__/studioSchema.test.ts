@@ -6,13 +6,13 @@ import { studioProjectResponseSchema, studioRenderResponseSchema } from "../lib/
 test("studioProjectResponseSchema 는 storage key 없이 Studio project 응답을 검증한다", () => {
   const parsed = studioProjectResponseSchema.parse({
     project_id: "11111111-1111-4111-8111-111111111111",
-    template_type: "PROMOTION_SHORT",
+    template_type: "HAIR_STYLING_MOTION",
     category: "HAIR",
     status: "DRAFT_READY",
-    title: "봄맞이 클리닉 이벤트",
-    offer_text: "첫 방문 20% 할인",
-    cta_text: "오늘 예약 문의하기",
-    duration_seconds: 15,
+    title: "자연스러운 헤어 스타일링",
+    offer_text: "부드러운 고개 움직임과 자연스러운 모발 결 흔들림",
+    cta_text: "자연스러운 헤어 연출",
+    duration_seconds: 5,
     target_audience: "신규 고객",
     tone: "FRIENDLY",
     asset_ids: [],
@@ -48,7 +48,7 @@ test("studioProjectResponseSchema 는 storage key 없이 Studio project 응답�
     updated_at: "2026-08-05T00:00:00Z",
   });
 
-  assert.equal(parsed.template_type, "PROMOTION_SHORT");
+  assert.equal(parsed.template_type, "HAIR_STYLING_MOTION");
   assert.equal(parsed.storage.output_prefix, "studio/outputs");
 });
 

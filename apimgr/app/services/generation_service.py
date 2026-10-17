@@ -31,6 +31,11 @@ from app.providers.video_generation.base import VideoGenerationInput, VideoProvi
 from app.repositories.generation_repository import GenerationRepository
 
 
+class GenerationIdempotencyConflict(DomainError):
+    error_code = ErrorCode.GENERATION_DUPLICATED
+    retryable = False
+
+
 class GenerationService:
     def __init__(self, repo: GenerationRepository) -> None:
         self._repo = repo
@@ -59,6 +64,12 @@ class GenerationService:
         #    막았다고 판단하지 않는다.
         existing = self._repo.get_by_idempotency_key(input_data.idempotency_key)
         if existing is not None:
+            self._assert_idempotency_scope(
+                existing,
+                GenerationType.VIDEO,
+                consultation_id,
+                created_by,
+            )
             return existing
 
         # 2. CREATED 저장 (트랜잭션 경계 — 외부 호출 전에 종료).
@@ -104,6 +115,12 @@ class GenerationService:
         """
         existing = self._repo.get_by_idempotency_key(input_data.idempotency_key)
         if existing is not None:
+            self._assert_idempotency_scope(
+                existing,
+                GenerationType.IMAGE,
+                consultation_id,
+                created_by,
+            )
             return existing
         gen = Generation(
             id=generation_id,
@@ -194,3 +211,20 @@ class GenerationService:
             gen.output_asset_id = output_asset_id
         self._repo.update(gen)
         return gen
+
+    def _assert_idempotency_scope(
+        self,
+        existing: Generation,
+        generation_type: GenerationType,
+        consultation_id: str,
+        created_by: str | None,
+    ) -> None:
+        """동일 idempotency key 는 같은 생성 타입·소유자·컨텍스트에서만 재사용한다."""
+        if (
+            existing.generation_type is not generation_type
+            or existing.consultation_id != consultation_id
+            or existing.created_by != created_by
+        ):
+            raise GenerationIdempotencyConflict(
+                "idempotency key already belongs to a different generation"
+            )

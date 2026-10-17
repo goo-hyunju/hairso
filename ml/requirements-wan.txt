@@ -1,0 +1,10 @@
+diffusers>=0.39.0
+transformers
+accelerate
+imageio
+imageio-ffmpeg
+gguf
+ftfy
+sentencepiece
+protobuf
+safetensors

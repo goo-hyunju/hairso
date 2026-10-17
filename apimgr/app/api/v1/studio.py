@@ -6,10 +6,11 @@ Router 는 HTTP 요청/응답 변환만 담당하고, draft 생성과 render 연
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import Response
 
 from app.api.deps import (
     get_asset_service,
@@ -19,7 +20,8 @@ from app.api.deps import (
     get_settings,
     get_studio_service,
 )
-from app.domain.enums import GenerationStatus
+from app.api.v1.generations import advance_stalled_video_generation, is_video_advance_inflight
+from app.domain.enums import ErrorCode, GenerationStatus
 from app.domain.errors import DomainError
 from app.domain.studio import StudioDraft, StudioProject, StudioScene, StudioScript
 from app.providers.video_generation.base import VideoProvider
@@ -37,15 +39,24 @@ from app.schemas.studio import (
 from app.services.asset_service import AssetService
 from app.services.generation_service import GenerationService
 from app.services.studio_service import StudioService
-from app.workers.generation_worker import GenerationWorker
+from app.workers.generation_worker import GenerationWorker, video_polling_config
 
 router = APIRouter(prefix="/api/v1/studio", tags=["studio"])
+
+StudioServiceDep = Annotated[StudioService, Depends(get_studio_service)]
+GenerationServiceDep = Annotated[GenerationService, Depends(get_generation_service)]
+AssetServiceDep = Annotated[AssetService, Depends(get_asset_service)]
+OptionalUserDep = Annotated[str | None, Depends(get_optional_user)]
 
 _TERMINAL = {
     GenerationStatus.SUCCEEDED,
     GenerationStatus.FAILED,
     GenerationStatus.CANCELED,
     GenerationStatus.EXPIRED,
+}
+
+_DOWNLOAD_EXTENSIONS = {
+    "video/mp4": "mp4",
 }
 
 
@@ -56,14 +67,24 @@ async def _advance_video_generation(
     provider: VideoProvider,
 ) -> None:
     """Studio render job 전진. 실서비스는 DB job + 별도 Worker 로 이동한다."""
-    interval = float(os.environ.get("MOCK_ADVANCE_INTERVAL_SEC", "1.0"))
+    interval, max_polls = video_polling_config()
     worker = GenerationWorker(service, asset_service)
-    for _ in range(8):
+    for _ in range(max_polls):
         await asyncio.sleep(interval)
         gen = service.get_generation(generation_id)
         if gen is None or gen.status in _TERMINAL:
             break
-        await worker.advance_once(gen, provider)
+        if is_video_advance_inflight(gen.id):
+            continue  # 조회발 전진이 진행 중 — 이번 tick 은 건너뛴다
+        try:
+            await worker.advance_once(gen, provider)
+        except Exception:  # noqa: BLE001
+            service.fail_generation(gen, gen.generation_type, ErrorCode.GENERATION_FAILED)
+            break
+    else:
+        gen = service.get_generation(generation_id)
+        if gen is not None and gen.status not in _TERMINAL:
+            service.fail_generation(gen, gen.generation_type, ErrorCode.GENERATION_FAILED)
 
 
 def _storage_response() -> StudioStorageConfigResponse:
@@ -74,6 +95,11 @@ def _storage_response() -> StudioStorageConfigResponse:
         output_prefix=s.studio_output_prefix,
         output_retention_days=s.studio_output_retention_days,
     )
+
+
+def _download_filename(project_id: str, mime_type: str) -> str:
+    ext = _DOWNLOAD_EXTENSIONS.get(mime_type, "bin")
+    return f"hairso-studio-{project_id[:8]}.{ext}"
 
 
 def _script_schema(script: StudioScript) -> StudioScriptSchema:
@@ -137,6 +163,8 @@ def _raise_http(exc: DomainError) -> None:
         status = 404
     elif exc.error_code.value == "FORBIDDEN":
         status = 403
+    elif exc.error_code.value == "GENERATION_DUPLICATED":
+        status = 409
     else:
         status = 400
     raise HTTPException(status_code=status, detail=exc.error_code.value) from exc
@@ -145,9 +173,9 @@ def _raise_http(exc: DomainError) -> None:
 @router.post("/projects", status_code=201, response_model=StudioProjectResponse)
 async def create_studio_project(
     request: StudioProjectCreateRequest,
-    service: StudioService = Depends(get_studio_service),
-    generation_service: GenerationService = Depends(get_generation_service),
-    user_id: str | None = Depends(get_optional_user),
+    service: StudioServiceDep,
+    generation_service: GenerationServiceDep,
+    user_id: OptionalUserDep,
 ) -> StudioProjectResponse:
     """Studio 프로젝트 생성. 기본 템플릿은 PROMOTION_SHORT 이고 Hair 는 category 중 하나다."""
     settings = get_settings()
@@ -176,23 +204,31 @@ async def create_studio_project(
 @router.get("/projects/{project_id}", response_model=StudioProjectResponse)
 async def get_studio_project(
     project_id: str,
-    service: StudioService = Depends(get_studio_service),
-    generation_service: GenerationService = Depends(get_generation_service),
-    user_id: str | None = Depends(get_optional_user),
+    service: StudioServiceDep,
+    generation_service: GenerationServiceDep,
+    asset_service: AssetServiceDep,
+    user_id: OptionalUserDep,
 ) -> StudioProjectResponse:
     try:
         project = service.get_project(project_id, user_id)
     except DomainError as exc:
         _raise_http(exc)
+    # BE 재시작으로 백그라운드 폴러가 사라졌어도 조회 폴링이 render 전진을 이어받는다.
+    if project.render_generation_id:
+        gen = generation_service.get_generation(project.render_generation_id)
+        if gen is not None:
+            advanced = await advance_stalled_video_generation(gen, generation_service, asset_service)
+            if advanced is not None and advanced.status is not gen.status:
+                project = service.get_project(project_id, user_id)  # _refresh_render_status 재반영
     return _project_response(project, generation_service)
 
 
 @router.post("/projects/{project_id}/draft", response_model=StudioProjectResponse)
 async def create_studio_draft(
     project_id: str,
-    service: StudioService = Depends(get_studio_service),
-    generation_service: GenerationService = Depends(get_generation_service),
-    user_id: str | None = Depends(get_optional_user),
+    service: StudioServiceDep,
+    generation_service: GenerationServiceDep,
+    user_id: OptionalUserDep,
 ) -> StudioProjectResponse:
     try:
         project = service.create_draft(project_id, user_id)
@@ -205,9 +241,9 @@ async def create_studio_draft(
 async def update_studio_draft(
     project_id: str,
     request: StudioDraftPatchRequest,
-    service: StudioService = Depends(get_studio_service),
-    generation_service: GenerationService = Depends(get_generation_service),
-    user_id: str | None = Depends(get_optional_user),
+    service: StudioServiceDep,
+    generation_service: GenerationServiceDep,
+    user_id: OptionalUserDep,
 ) -> StudioProjectResponse:
     script = StudioScript(
         hook=request.script.hook,
@@ -235,10 +271,10 @@ async def render_studio_project(
     project_id: str,
     request: StudioRenderRequest,
     background: BackgroundTasks,
-    service: StudioService = Depends(get_studio_service),
-    generation_service: GenerationService = Depends(get_generation_service),
-    asset_service: AssetService = Depends(get_asset_service),
-    user_id: str | None = Depends(get_optional_user),
+    service: StudioServiceDep,
+    generation_service: GenerationServiceDep,
+    asset_service: AssetServiceDep,
+    user_id: OptionalUserDep,
 ) -> StudioRenderResponse:
     provider = get_default_video_provider()
     generation_id = str(uuid.uuid4())
@@ -266,4 +302,27 @@ async def render_studio_project(
         project_id=project_id,
         generation_id=gen.id,
         status=gen.status,
+    )
+
+
+@router.get("/projects/{project_id}/download")
+async def download_studio_project(
+    project_id: str,
+    service: StudioServiceDep,
+    user_id: OptionalUserDep,
+) -> Response:
+    """Studio render 결과를 모바일 브라우저 다운로드로 내려준다."""
+    try:
+        data, mime_type = service.get_output_bytes(project_id, user_id)
+    except DomainError as exc:
+        _raise_http(exc)
+    filename = _download_filename(project_id, mime_type)
+    return Response(
+        content=data,
+        media_type=mime_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
     )

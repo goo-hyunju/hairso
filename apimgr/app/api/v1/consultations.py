@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 
@@ -24,5 +24,5 @@ async def create_consultation(
         consultation_id=str(uuid.uuid4()),
         status="OPEN",
         memo=None,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )

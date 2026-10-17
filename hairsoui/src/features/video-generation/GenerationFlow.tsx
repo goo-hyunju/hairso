@@ -23,6 +23,14 @@ const TERMINAL: ReadonlySet<GenerationStatus> = new Set<GenerationStatus>([
 
 type Phase = "idle" | "running" | "done" | "error";
 
+function createDemoIdempotencyKey(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") return randomUUID.call(globalThis.crypto);
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).slice(2, 12);
+  return `demo-video-${timestamp}-${random}`;
+}
+
 function isAbortError(err: unknown): boolean {
   return (
     typeof err === "object" &&
@@ -99,7 +107,7 @@ export function GenerationFlow() {
         duration_seconds: 5,
         aspect_ratio: "9:16",
         quality: "720p",
-        idempotency_key: crypto.randomUUID(),
+        idempotency_key: createDemoIdempotencyKey(),
       });
       if (!mounted.current) return;
       setGenId(res.generation_id);

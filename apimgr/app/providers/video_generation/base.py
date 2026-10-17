@@ -29,7 +29,7 @@ class VideoSourceImage:
 class VideoGenerationInput:
     image_asset_id: str | None  # UUID 문자열. None 은 Studio mock text-only render 에 한정한다.
     prompt: str
-    duration_seconds: int  # MVP 5, 확장 8 (Pydantic 요청 스키마에서 Literal[5,8] 검증)
+    duration_seconds: int  # Direct video API는 5/8, Studio는 5/15/30 제품 길이를 검증한다.
     aspect_ratio: str  # "9:16" | "16:9" | "1:1"
     quality: str  # "480p" | "720p" | "1080p"
     idempotency_key: str

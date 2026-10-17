@@ -7,18 +7,18 @@ Repository: DATABASE_URL 설정 시 Supabase(psycopg), 없으면 InMemory(스캐
 from __future__ import annotations
 
 from functools import lru_cache
-from pathlib import Path
 
 from fastapi import HTTPException, Request
+from jwt import PyJWKClientError, PyJWTError
 
 from app.api.auth import SupabaseJWTVerifier
 from app.core.config import get_settings
 from app.providers.image_generation.base import ImageProvider
 from app.providers.storage.base import AssetStore
+from app.providers.storage.local_disk import LocalDiskAssetStore
 from app.providers.studio_draft.base import StudioDraftProvider, StudioDraftProviderError
 from app.providers.studio_draft.mock import MockStudioDraftProvider
 from app.providers.studio_draft.ollama import OllamaStudioDraftProvider
-from app.providers.storage.local_disk import LocalDiskAssetStore
 from app.providers.video_generation.base import VideoProvider
 from app.providers.video_generation.mock import MockScenario, MockVideoProvider
 from app.repositories.asset_repository import AssetRepository, InMemoryAssetRepository
@@ -31,10 +31,6 @@ from app.services.asset_service import AssetService
 from app.services.generation_service import GenerationService
 from app.services.studio_service import StudioService
 from app.services.webhook_service import WebhookService
-
-# ASSET_LOCAL_ROOT 미설정 시 기본: 저장소(repo) 밖 rengoo/models(§4.13 — 고객 얼굴/결과 repo 밖).
-# deps.py = apimgr/app/api/deps.py → parents[4] = rengoo.
-_DEFAULT_ASSET_ROOT = Path(__file__).resolve().parents[4] / "models"
 
 
 @lru_cache(maxsize=1)
@@ -93,7 +89,7 @@ def get_asset_store() -> AssetStore:
         from app.providers.storage.supabase import SupabaseAssetStore
 
         return SupabaseAssetStore(s.supabase_url, s.supabase_secret_key, s.supabase_storage_bucket)
-    return LocalDiskAssetStore(s.asset_local_root or str(_DEFAULT_ASSET_ROOT))
+    return LocalDiskAssetStore(s.asset_local_root)
 
 
 @lru_cache(maxsize=1)
@@ -198,7 +194,7 @@ def get_optional_user(request: Request) -> str | None:
         raise HTTPException(status_code=401, detail="UNAUTHORIZED")
     try:
         payload = verifier.verify(token)
-    except Exception:
+    except (PyJWKClientError, PyJWTError):
         raise HTTPException(status_code=401, detail="UNAUTHORIZED")
     sub = payload.get("sub")
     return str(sub) if sub is not None else None

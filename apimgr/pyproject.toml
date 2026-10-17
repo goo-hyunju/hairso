@@ -1,7 +1,7 @@
 [project]
 name = "apimgr"
-version = "0.1.0"
-description = "HairView AI backend (FastAPI) — 스캐폴드"
+version = "0.3.0"
+description = "Hairso Studio backend (FastAPI) — MVP 스캐폴드"
 requires-python = ">=3.12"
 # 버전 범위만 선언한다. 정확한 고정 버전은 설치 후 pip freeze 로 확정한다
 # (규칙 §0.9·§4.1: 모델 기억으로 버전 단정 금지).

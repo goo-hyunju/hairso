@@ -40,7 +40,7 @@ class TestGenerationWorker(unittest.IsolatedAsyncioTestCase):
 
     async def test_async_fail_preserves_error_code(self):
         # 결함2 회귀: provider FAILED 시 gen.error_code 가 보존돼야 한다.
-        svc, worker, gen = await self._submit(None)
+        _svc, worker, gen = await self._submit(None)
         gen = await worker.advance_once(gen, MockVideoProvider(MockScenario.ASYNC_FAIL))
         self.assertEqual(gen.status, GenerationStatus.FAILED)
         self.assertEqual(gen.error_code, ErrorCode.GENERATION_FAILED)
@@ -92,7 +92,7 @@ class TestGenerationWorker(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(stored[0], _MP4_BYTES)
 
     async def test_non_mock_output_url_without_bytes_fails_download(self):
-        svc, worker, gen = await self._submit(None)
+        _svc, worker, gen = await self._submit(None)
         gen.status = GenerationStatus.PROCESSING
 
         class _UrlOnlyProvider(MockVideoProvider):
@@ -108,7 +108,7 @@ class TestGenerationWorker(unittest.IsolatedAsyncioTestCase):
 
     async def test_missing_output_url_fails(self):
         # 결함#4 회귀: POST_PROCESSING 에서 결과 URL 부재는 성공이 아니라 다운로드 실패.
-        svc, worker, gen = await self._submit(None)
+        _svc, worker, gen = await self._submit(None)
         gen.status = GenerationStatus.POST_PROCESSING
 
         class _NoUrlProvider(MockVideoProvider):
