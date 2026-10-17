@@ -1,6 +1,6 @@
 [project]
 name = "apimgr"
-version = "0.3.0"
+version = "0.3.1"
 description = "Hairso Studio backend (FastAPI) — MVP 스캐폴드"
 requires-python = ">=3.12"
 # 버전 범위만 선언한다. 정확한 고정 버전은 설치 후 pip freeze 로 확정한다

@@ -23,13 +23,12 @@ out/
 
 # === 환경변수 · 자격증명 (커밋 금지) ===
 .env
-.env.local
-.env.*.local
+.env.*
 **/.env
-**/.env.local
-**/.env.*.local
+**/.env.*
+!.env.example
 !**/.env.example
-# 평문 자격증명 폴더(루트 CLAUDE.md §4.18)
+# 평문 자격증명 폴더
 cfg/
 **/cfg/
 
@@ -43,8 +42,15 @@ Thumbs.db
 .idea/
 .vscode/
 
-# === 로컬 전용 에이전트 설정 (저장소에 올리지 않음) ===
-.agents/
-.ai/
+# === AI 에이전트 설정·규칙 파일 (로컬 전용, 저장소 제외) ===
 .claude/
 .codex/
+.agents/
+.ai/
+CLAUDE.md
+CLAUDE.override.md
+AGENTS.md
+AGENTS.override.md
+
+# === 도구 산출물 ===
+.playwright-mcp/
